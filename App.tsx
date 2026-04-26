@@ -13,6 +13,8 @@ import { useTicker } from './engine/ticker';
 import { WelcomeBack } from './components/WelcomeBack';
 import { OverclockToggle } from './components/OverclockToggle';
 import { FailureNotice } from './components/FailureNotice';
+import { IncidentBanner } from './components/IncidentBanner';
+import { IncidentToast } from './components/IncidentToast';
 import { UpgradesScreen } from './components/UpgradesScreen';
 import { ServersScreen } from './components/ServersScreen';
 import { PowerScreen } from './components/PowerScreen';
@@ -41,6 +43,7 @@ export default function App() {
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
   const addCredits = useGameStore((state) => state.addCredits);
+  const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
   const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
@@ -123,6 +126,7 @@ export default function App() {
       )}
 
       <FailureNotice />
+      <IncidentToast />
 
       <View style={styles.topBar}>
         <Text style={styles.title}>SERVER IDLE</Text>
@@ -139,6 +143,8 @@ export default function App() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
+        <IncidentBanner />
+
         {/* Stats card */}
         <View style={styles.statsCard}>
           <Text style={styles.credits}>
@@ -148,6 +154,9 @@ export default function App() {
           <Text style={[styles.perSec, overclockEnabled && styles.perSecBoosted]}>
             {cps.toFixed(1)} / sec {overclockEnabled ? '⚡' : ''}
           </Text>
+          {vendorDiscountAvailable && (
+            <Text style={styles.discountBadge}>💰 50% OFF NEXT SERVER</Text>
+          )}
 
           <View style={styles.divider} />
 
@@ -287,6 +296,14 @@ const styles = StyleSheet.create({
   },
   perSecBoosted: {
     color: '#ff3355',
+  },
+  discountBadge: {
+    color: '#ddee77',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginTop: 6,
+    textAlign: 'center',
   },
   divider: {
     height: 1,

@@ -110,6 +110,22 @@ So your first Rack costs effectively `$2,250` (Rack + PDU + AC Unit). Pays back 
 
 ---
 
+## Live incidents
+
+Once you own at least one server (or cluster), random incidents fire roughly **1% per second** (~1 every 1–3 minutes on average). Only one is active at a time. Each shows as a banner at the top of the main screen with a countdown timer.
+
+| Incident | Effect while active | Resolve | Reward / Penalty |
+|---|---|---|---|
+| 🛑 **DDoS Attack** | 0.5× output globally (30s timer) | Tap **MITIGATE** 3 times | Resolve: +30s of cps · Timeout: −60s of cps |
+| 💾 **Disk Full** | 0.5× output globally (45s timer) | Tap **CLEAR DISK** once | Resolve: +15s of cps · Timeout: just expires |
+| 💰 **Vendor Offer** | No effect (60s timer) | Tap **ACCEPT 50% OFF** | Banks a 50% discount on your next server purchase |
+
+A banked vendor discount appears as `💰 50% OFF NEXT SERVER` under your cps display until you use it.
+
+A small toast confirms the result (resolved or timed out) for ~3.5 seconds after each incident ends.
+
+---
+
 ## Phase 4 — Overclocking (the risk/reward beat)
 
 Once you've got a few Racks, the **OVERCLOCK** button becomes interesting:
@@ -207,7 +223,8 @@ If you close *without* collecting, the pending amount sticks around — reopenin
 The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to come:
 
 ### Phase 4 — Live Systems
-- **Incidents:** random tap-to-resolve events (DDoS, disk full, memory leak, hacker breach minigame)
+- ~~Incidents (DDoS, Disk Full, Vendor Offer)~~ ✅ shipped
+- **More incidents:** memory leak, hacker breach minigame
 - ~~Cluster tier~~ ✅ shipped (Pi Cluster)
 - **Rack Cluster** (consume 5 Racks for a multiplier — coming with later upgrades)
 - **Auto-provisioner** automation upgrades
