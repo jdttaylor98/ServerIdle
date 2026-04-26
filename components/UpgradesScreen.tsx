@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
-  TouchableOpacity,
 } from 'react-native';
 import {
   getUpgradesByEra,
@@ -14,6 +13,7 @@ import {
 } from '../engine/upgrades';
 import { useGameStore } from '../engine/store';
 import { UpgradeCard } from './UpgradeCard';
+import { ScreenHeader } from './ScreenHeader';
 
 const ERAS: { era: UpgradeEra; label: string }[] = [
   { era: 'homelab', label: 'HOMELAB' },
@@ -62,15 +62,11 @@ export function UpgradesScreen({ onClose }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.backButton}>
-          <Text style={styles.backText}>← BACK</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>UPGRADES</Text>
-        <Text style={styles.credits}>
-          {Math.floor(credits).toLocaleString()} cr
-        </Text>
-      </View>
+      <ScreenHeader
+        title="UPGRADES"
+        rightLabel={`${Math.floor(credits).toLocaleString()} cr`}
+        onBack={onClose}
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -113,36 +109,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#0d0d1a',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a2e',
-  },
-  backButton: {
-    paddingVertical: 6,
-    paddingRight: 12,
-  },
-  backText: {
-    color: '#00ff88',
-    fontSize: 13,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  title: {
-    color: '#00ff88',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 3,
-  },
-  credits: {
-    color: '#fff',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
   },
   scroll: {
     flex: 1,

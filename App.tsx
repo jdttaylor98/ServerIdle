@@ -11,30 +11,41 @@ import { StatusBar } from 'expo-status-bar';
 import { useGameStore } from './engine/store';
 import { useTicker } from './engine/ticker';
 import { WelcomeBack } from './components/WelcomeBack';
-import { ServerList } from './components/ServerList';
 import { OverclockToggle } from './components/OverclockToggle';
 import { FailureNotice } from './components/FailureNotice';
-import { CapacitySection } from './components/CapacitySection';
 import { UpgradesScreen } from './components/UpgradesScreen';
+import { ServersScreen } from './components/ServersScreen';
+import { PowerScreen } from './components/PowerScreen';
+import { CoolingScreen } from './components/CoolingScreen';
+import { MiniMeter } from './components/MiniMeter';
+import { NavTile } from './components/NavTile';
 import {
   getClickCreditBonus,
   getClickCreditMultiplier,
+  getBonusPowerCapacity,
 } from './engine/upgrades';
+import {
+  getTotalPowerDraw,
+  getTotalHeatOutput,
+} from './engine/servers';
+import { getTotalCapacity } from './engine/capacity';
 
-type Screen = 'main' | 'upgrades';
+type Screen = 'main' | 'upgrades' | 'servers' | 'power' | 'cooling';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
   const getCreditsPerSec = useGameStore((state) => state.getCreditsPerSec);
   const overclockEnabled = useGameStore((state) => state.overclockEnabled);
   const upgrades = useGameStore((state) => state.upgrades);
+  const servers = useGameStore((state) => state.servers);
+  const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
   const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
 
   const [showWelcome, setShowWelcome] = useState(false);
-  const [view, setView] = useState<Screen>('main');
+  const [screen, setScreen] = useState<Screen>('main');
   const hasLoaded = useRef(false);
 
   useTicker();
@@ -49,18 +60,52 @@ export default function App() {
     if (pendingOfflineEarnings >= 1) setShowWelcome(true);
   }, [pendingOfflineEarnings]);
 
+  // Drill-down screens
+  if (screen === 'upgrades') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <UpgradesScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
+  if (screen === 'servers') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <ServersScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
+  if (screen === 'power') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <PowerScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
+  if (screen === 'cooling') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <CoolingScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
+
+  // Main dashboard
   const cps = getCreditsPerSec();
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
 
-  if (view === 'upgrades') {
-    return (
-      <>
-        <StatusBar style="light" />
-        <UpgradesScreen onClose={() => setView('main')} />
-      </>
-    );
-  }
+  const powerUsed = getTotalPowerDraw(servers);
+  const powerCap =
+    getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
+  const heatUsed = getTotalHeatOutput(servers);
+  const coolingCap = getTotalCapacity(capacity, 'cooling');
+
+  const totalServers = Object.values(servers).reduce((a, b) => a + b, 0);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -81,10 +126,10 @@ export default function App() {
       <View style={styles.topBar}>
         <Text style={styles.title}>SERVER IDLE</Text>
         <TouchableOpacity
-          onPress={() => setView('upgrades')}
-          style={styles.navButton}
+          onPress={() => setScreen('upgrades')}
+          style={styles.upgradesButton}
         >
-          <Text style={styles.navText}>UPGRADES →</Text>
+          <Text style={styles.upgradesText}>UPGRADES →</Text>
         </TouchableOpacity>
       </View>
 
@@ -93,14 +138,35 @@ export default function App() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statsBox}>
-          <Text style={styles.credits}>{Math.floor(credits).toLocaleString()}</Text>
+        {/* Stats card */}
+        <View style={styles.statsCard}>
+          <Text style={styles.credits}>
+            {Math.floor(credits).toLocaleString()}
+          </Text>
           <Text style={styles.creditsLabel}>credits</Text>
           <Text style={[styles.perSec, overclockEnabled && styles.perSecBoosted]}>
             {cps.toFixed(1)} / sec {overclockEnabled ? '⚡' : ''}
           </Text>
+
+          <View style={styles.divider} />
+
+          <MiniMeter
+            icon="⚡"
+            label="POWER"
+            used={powerUsed}
+            capacity={powerCap}
+            unit="W"
+          />
+          <MiniMeter
+            icon="❄"
+            label="COOLING"
+            used={heatUsed}
+            capacity={coolingCap}
+            unit="BTU"
+          />
         </View>
 
+        {/* Action buttons */}
         <TouchableOpacity
           style={styles.clickButton}
           onPress={tapProvision}
@@ -114,8 +180,29 @@ export default function App() {
         </TouchableOpacity>
 
         <OverclockToggle />
-        <ServerList />
-        <CapacitySection />
+
+        {/* Drill-down nav */}
+        <View style={styles.navSection}>
+          <Text style={styles.navHeading}>BUILD</Text>
+          <NavTile
+            icon="🖥️"
+            label="SERVERS"
+            hint={`${totalServers} owned`}
+            onPress={() => setScreen('servers')}
+          />
+          <NavTile
+            icon="⚡"
+            label="POWER"
+            hint={`${Math.floor(powerUsed)} / ${Math.floor(powerCap)} W`}
+            onPress={() => setScreen('power')}
+          />
+          <NavTile
+            icon="❄"
+            label="COOLING"
+            hint={`${Math.floor(heatUsed)} / ${Math.floor(coolingCap)} BTU`}
+            onPress={() => setScreen('cooling')}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -141,14 +228,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 3,
   },
-  navButton: {
+  upgradesButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#2a2a4a',
     borderRadius: 6,
   },
-  navText: {
+  upgradesText: {
     color: '#00ff88',
     fontSize: 11,
     fontWeight: 'bold',
@@ -160,30 +247,41 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 40,
-    alignItems: 'center',
   },
-  statsBox: {
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 8,
+  statsCard: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
+    alignItems: 'stretch',
   },
   credits: {
     color: '#ffffff',
-    fontSize: 44,
+    fontSize: 42,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   creditsLabel: {
     color: '#888',
-    fontSize: 13,
+    fontSize: 12,
     marginTop: -4,
+    textAlign: 'center',
   },
   perSec: {
     color: '#00ff88',
     fontSize: 14,
     marginTop: 6,
+    textAlign: 'center',
   },
   perSecBoosted: {
     color: '#ff3355',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#2a2a4a',
+    marginVertical: 14,
   },
   clickButton: {
     backgroundColor: '#1a1a2e',
@@ -193,7 +291,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 12,
   },
   clickButtonText: {
     color: '#00ff88',
@@ -205,5 +303,15 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 11,
     marginTop: 2,
+  },
+  navSection: {
+    marginTop: 14,
+  },
+  navHeading: {
+    color: '#666',
+    fontSize: 11,
+    letterSpacing: 3,
+    marginBottom: 10,
+    fontWeight: 'bold',
   },
 });

@@ -22,6 +22,22 @@ A brand-new player opens the game with:
 
 ---
 
+## Screens
+
+The game is split across a main dashboard and four drill-down screens, all accessed from the dashboard:
+
+| Screen | Purpose |
+|---|---|
+| **Main** | Credits, cps, mini Power/Cooling meters, PROVISION, Overclock toggle, nav tiles |
+| **Servers** | Buy/sell server tiers (Pi, Rack, Blade) |
+| **Power** | Buy/sell power capacity buildings + full power meter |
+| **Cooling** | Buy/sell cooling capacity buildings + full cooling meter |
+| **Upgrades** | Tree-view of unlockable upgrades organized by era |
+
+Mini meters on the dashboard always show real-time power/cooling usage so you can spot overload at a glance.
+
+---
+
 ## Phase 1 — First Pi (the first 60 seconds)
 
 | Step | Action | Result |
