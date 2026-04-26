@@ -40,6 +40,7 @@ export default function App() {
   const servers = useGameStore((state) => state.servers);
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
+  const addCredits = useGameStore((state) => state.addCredits);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
   const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
@@ -181,6 +182,15 @@ export default function App() {
 
         <OverclockToggle />
 
+        {/* DEV — remove before ship */}
+        <TouchableOpacity
+          style={styles.devButton}
+          onPress={() => addCredits(10000)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.devButtonText}>+10K (DEV)</Text>
+        </TouchableOpacity>
+
         {/* Drill-down nav */}
         <View style={styles.navSection}>
           <Text style={styles.navHeading}>BUILD</Text>
@@ -313,5 +323,22 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     marginBottom: 10,
     fontWeight: 'bold',
+  },
+  // DEV — remove before ship
+  devButton: {
+    backgroundColor: '#332200',
+    borderColor: '#aa6600',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  devButtonText: {
+    color: '#ffaa44',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 2,
   },
 });
