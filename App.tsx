@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useGameStore } from './engine/store';
 import { useTicker } from './engine/ticker';
 import { WelcomeBack } from './components/WelcomeBack';
+import { ServerList } from './components/ServerList';
+import { OverclockToggle } from './components/OverclockToggle';
+import { FailureNotice } from './components/FailureNotice';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
-  const creditsPerSec = useGameStore((state) => state.creditsPerSec);
+  const getCreditsPerSec = useGameStore((state) => state.getCreditsPerSec);
+  const servers = useGameStore((state) => state.servers);
+  const overclockEnabled = useGameStore((state) => state.overclockEnabled);
   const addCredits = useGameStore((state) => state.addCredits);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
@@ -16,25 +28,24 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const hasLoaded = useRef(false);
 
-  // Start the tick engine + AppState listeners
   useTicker();
 
-  // Cold open: load save once on mount
+  // Cold open
   useEffect(() => {
     if (hasLoaded.current) return;
     hasLoaded.current = true;
     loadGame();
   }, []);
 
-  // Show modal whenever pending offline earnings arrive (cold open or foreground return)
+  // Show welcome modal whenever pending offline earnings appear
   useEffect(() => {
-    if (pendingOfflineEarnings >= 1) {
-      setShowWelcome(true);
-    }
+    if (pendingOfflineEarnings >= 1) setShowWelcome(true);
   }, [pendingOfflineEarnings]);
 
+  const cps = getCreditsPerSec();
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
 
       {showWelcome && (
@@ -47,61 +58,81 @@ export default function App() {
         />
       )}
 
-      <Text style={styles.title}>SERVER IDLE</Text>
+      <FailureNotice />
 
-      <View style={styles.statsBox}>
-        <Text style={styles.credits}>{Math.floor(credits)}</Text>
-        <Text style={styles.creditsLabel}>credits</Text>
-        <Text style={styles.perSec}>{creditsPerSec.toFixed(2)} / sec</Text>
-      </View>
-
-      <TouchableOpacity
-        style={styles.clickButton}
-        onPress={() => addCredits(1)}
-        activeOpacity={0.7}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.clickButtonText}>PROVISION</Text>
-        <Text style={styles.clickButtonSub}>+1 credit</Text>
-      </TouchableOpacity>
+        <Text style={styles.title}>SERVER IDLE</Text>
 
-      <Text style={styles.hint}>Close the app and come back to see offline earnings</Text>
-    </View>
+        <View style={styles.statsBox}>
+          <Text style={styles.credits}>{Math.floor(credits).toLocaleString()}</Text>
+          <Text style={styles.creditsLabel}>credits</Text>
+          <Text style={[styles.perSec, overclockEnabled && styles.perSecBoosted]}>
+            {cps.toFixed(1)} / sec {overclockEnabled ? '⚡' : ''}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.clickButton}
+          onPress={() => addCredits(1)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.clickButtonText}>PROVISION</Text>
+          <Text style={styles.clickButtonSub}>+1 credit</Text>
+        </TouchableOpacity>
+
+        <OverclockToggle />
+        <ServerList />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
     backgroundColor: '#0d0d1a',
+  },
+  scroll: {
+    flex: 1,
+  },
+  container: {
+    padding: 20,
+    paddingBottom: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
   },
   title: {
     color: '#00ff88',
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     letterSpacing: 4,
-    marginBottom: 40,
+    marginBottom: 24,
+    marginTop: 8,
   },
   statsBox: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 24,
   },
   credits: {
     color: '#ffffff',
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: 'bold',
   },
   creditsLabel: {
     color: '#888',
-    fontSize: 16,
+    fontSize: 14,
     marginTop: -4,
   },
   perSec: {
     color: '#00ff88',
     fontSize: 14,
-    marginTop: 8,
+    marginTop: 6,
+  },
+  perSecBoosted: {
+    color: '#ff3355',
   },
   clickButton: {
     backgroundColor: '#1a1a2e',
@@ -109,26 +140,19 @@ const styles = StyleSheet.create({
     borderColor: '#00ff88',
     borderRadius: 12,
     paddingHorizontal: 48,
-    paddingVertical: 20,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 22,
   },
   clickButtonText: {
     color: '#00ff88',
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 2,
   },
   clickButtonSub: {
     color: '#888',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  hint: {
-    color: '#444',
-    fontSize: 12,
-    textAlign: 'center',
-    position: 'absolute',
-    bottom: 48,
+    fontSize: 11,
+    marginTop: 2,
   },
 });
