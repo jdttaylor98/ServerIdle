@@ -13,12 +13,14 @@ export function ServerRow({ tier }: Props) {
   const owned = useGameStore((state) => state.servers[tier.id] ?? 0);
   const upgrades = useGameStore((state) => state.upgrades);
   const buyServer = useGameStore((state) => state.buyServer);
+  const sellServer = useGameStore((state) => state.sellServer);
 
   const cost = getServerCost(tier, owned);
   const tierMult = getServerOutputMultiplier(tier.id, upgrades);
   const perUnit = tier.baseOutput * tierMult;
   const totalOutput = getServerOutput(tier, owned) * tierMult;
   const canAfford = credits >= cost;
+  const refund = owned > 0 ? Math.floor(getServerCost(tier, owned - 1) * 0.5) : 0;
 
   return (
     <View style={styles.row}>
@@ -38,6 +40,15 @@ export function ServerRow({ tier }: Props) {
         <Text style={styles.consumption}>
           {tier.powerDraw}W · {tier.heatOutput} BTU per unit
         </Text>
+        {owned > 0 && (
+          <TouchableOpacity
+            style={styles.sellButton}
+            onPress={() => sellServer(tier.id)}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.sellText}>Sell 1 · refund {formatCost(refund)}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <TouchableOpacity
@@ -109,6 +120,15 @@ const styles = StyleSheet.create({
     color: '#555',
     fontSize: 10,
     marginTop: 2,
+  },
+  sellButton: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  sellText: {
+    color: '#ff7755',
+    fontSize: 11,
+    textDecorationLine: 'underline',
   },
   buyButton: {
     backgroundColor: '#00ff88',

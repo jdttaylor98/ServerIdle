@@ -11,11 +11,16 @@ export function CapacityRow({ building }: Props) {
   const credits = useGameStore((state) => state.credits);
   const owned = useGameStore((state) => state.capacity[building.id] ?? 0);
   const buy = useGameStore((state) => state.buyCapacityBuilding);
+  const sell = useGameStore((state) => state.sellCapacityBuilding);
 
   const cost = getCapacityBuildingCost(building, owned);
   const totalProvided = building.capacity * owned;
   const canAfford = credits >= cost;
   const unit = building.resource === 'power' ? 'W' : 'BTU';
+  const refund =
+    owned > 0
+      ? Math.floor(getCapacityBuildingCost(building, owned - 1) * 0.5)
+      : 0;
 
   return (
     <View style={styles.row}>
@@ -31,6 +36,17 @@ export function CapacityRow({ building }: Props) {
         <Text style={styles.output}>
           Total: +{totalProvided} {unit}
         </Text>
+        {owned > 0 && (
+          <TouchableOpacity
+            style={styles.sellButton}
+            onPress={() => sell(building.id)}
+            activeOpacity={0.6}
+          >
+            <Text style={styles.sellText}>
+              Sell 1 · refund {formatCost(refund)}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <TouchableOpacity
@@ -97,6 +113,15 @@ const styles = StyleSheet.create({
   output: {
     color: '#7af',
     fontSize: 12,
+  },
+  sellButton: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  sellText: {
+    color: '#ff7755',
+    fontSize: 11,
+    textDecorationLine: 'underline',
   },
   buyButton: {
     backgroundColor: '#7af',

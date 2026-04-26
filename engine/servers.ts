@@ -17,8 +17,8 @@ export const SERVER_TIERS: ServerTier[] = [
     baseCost: 10,
     baseOutput: 0.5,
     costScaling: 1.15,
-    powerDraw: 5,
-    heatOutput: 5,
+    powerDraw: 8,
+    heatOutput: 25,
   },
   {
     id: 'rack',
@@ -27,8 +27,8 @@ export const SERVER_TIERS: ServerTier[] = [
     baseCost: 250,
     baseOutput: 5,
     costScaling: 1.15,
-    powerDraw: 200,
-    heatOutput: 200,
+    powerDraw: 350,
+    heatOutput: 1100,
   },
   {
     id: 'blade',
@@ -37,8 +37,8 @@ export const SERVER_TIERS: ServerTier[] = [
     baseCost: 5000,
     baseOutput: 30,
     costScaling: 1.15,
-    powerDraw: 1000,
-    heatOutput: 1000,
+    powerDraw: 1200,
+    heatOutput: 4000,
   },
 ];
 

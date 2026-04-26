@@ -35,6 +35,8 @@ const OVERCLOCK_FAILURE_CHANCE = 0.005; // 0.5% per tick
 
 const CRON_JOBS_INTERVAL_SEC = 5; // auto-tap every N seconds when Cron Jobs purchased
 
+const SELL_REFUND_RATIO = 0.5; // refund 50% of the most recent purchase price when selling
+
 export interface GameState {
   credits: number;
   servers: Record<string, number>;
@@ -59,7 +61,9 @@ export interface GameState {
   addCredits: (amount: number) => void;
   tapProvision: () => void;
   buyServer: (tierId: string) => void;
+  sellServer: (tierId: string) => void;
   buyCapacityBuilding: (buildingId: string) => void;
+  sellCapacityBuilding: (buildingId: string) => void;
   buyUpgrade: (upgradeId: string) => void;
   toggleOverclock: () => void;
   clearFailureNotice: () => void;
@@ -226,6 +230,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  sellServer: (tierId) => {
+    const { credits, servers } = get();
+    const tier = SERVER_TIERS.find((t) => t.id === tierId);
+    if (!tier) return;
+    const owned = servers[tierId] ?? 0;
+    if (owned <= 0) return;
+
+    // Refund half of what the most recent unit cost
+    const refund = Math.floor(getServerCost(tier, owned - 1) * SELL_REFUND_RATIO);
+    set({
+      credits: credits + refund,
+      servers: { ...servers, [tierId]: owned - 1 },
+    });
+  },
+
   buyCapacityBuilding: (buildingId) => {
     const { credits, capacity } = get();
     const building = CAPACITY_BUILDINGS.find((b) => b.id === buildingId);
@@ -238,6 +257,22 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       credits: credits - cost,
       capacity: { ...capacity, [buildingId]: owned + 1 },
+    });
+  },
+
+  sellCapacityBuilding: (buildingId) => {
+    const { credits, capacity } = get();
+    const building = CAPACITY_BUILDINGS.find((b) => b.id === buildingId);
+    if (!building) return;
+    const owned = capacity[buildingId] ?? 0;
+    if (owned <= 0) return;
+
+    const refund = Math.floor(
+      getCapacityBuildingCost(building, owned - 1) * SELL_REFUND_RATIO
+    );
+    set({
+      credits: credits + refund,
+      capacity: { ...capacity, [buildingId]: owned - 1 },
     });
   },
 
