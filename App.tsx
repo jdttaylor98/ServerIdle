@@ -16,12 +16,19 @@ import { OverclockToggle } from './components/OverclockToggle';
 import { FailureNotice } from './components/FailureNotice';
 import { CapacitySection } from './components/CapacitySection';
 import { UptimeIndicator } from './components/UptimeIndicator';
+import { UpgradeTree } from './components/UpgradeTree';
+import {
+  getClickCreditBonus,
+  getClickCreditMultiplier,
+  getClickUptimeBonus,
+} from './engine/upgrades';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
   const getCreditsPerSec = useGameStore((state) => state.getCreditsPerSec);
   const servers = useGameStore((state) => state.servers);
   const overclockEnabled = useGameStore((state) => state.overclockEnabled);
+  const upgrades = useGameStore((state) => state.upgrades);
   const tapProvision = useGameStore((state) => state.tapProvision);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
@@ -45,6 +52,9 @@ export default function App() {
   }, [pendingOfflineEarnings]);
 
   const cps = getCreditsPerSec();
+  const tapCredits =
+    (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
+  const tapUptime = 2 + getClickUptimeBonus(upgrades);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -84,11 +94,15 @@ export default function App() {
           activeOpacity={0.7}
         >
           <Text style={styles.clickButtonText}>PROVISION</Text>
-          <Text style={styles.clickButtonSub}>+1 credit · +2% uptime</Text>
+          <Text style={styles.clickButtonSub}>
+            +{tapCredits % 1 === 0 ? tapCredits : tapCredits.toFixed(1)} credit
+            {tapCredits === 1 ? '' : 's'} · +{tapUptime}% uptime
+          </Text>
         </TouchableOpacity>
 
         <OverclockToggle />
         <ServerList />
+        <UpgradeTree />
         <CapacitySection />
       </ScrollView>
     </SafeAreaView>

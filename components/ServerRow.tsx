@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ServerTier, getServerCost, getServerOutput } from '../engine/servers';
+import { getServerOutputMultiplier } from '../engine/upgrades';
 import { useGameStore } from '../engine/store';
 
 interface Props {
@@ -10,10 +11,13 @@ interface Props {
 export function ServerRow({ tier }: Props) {
   const credits = useGameStore((state) => state.credits);
   const owned = useGameStore((state) => state.servers[tier.id] ?? 0);
+  const upgrades = useGameStore((state) => state.upgrades);
   const buyServer = useGameStore((state) => state.buyServer);
 
   const cost = getServerCost(tier, owned);
-  const totalOutput = getServerOutput(tier, owned);
+  const tierMult = getServerOutputMultiplier(tier.id, upgrades);
+  const perUnit = tier.baseOutput * tierMult;
+  const totalOutput = getServerOutput(tier, owned) * tierMult;
   const canAfford = credits >= cost;
 
   return (
@@ -25,7 +29,8 @@ export function ServerRow({ tier }: Props) {
         </View>
         <Text style={styles.description}>{tier.description}</Text>
         <Text style={styles.perUnit}>
-          {tier.baseOutput.toFixed(1)} credits/sec each
+          {perUnit.toFixed(2)} credits/sec each
+          {tierMult > 1 ? ` (×${tierMult.toFixed(2)})` : ''}
         </Text>
         <Text style={styles.output}>
           Total: {totalOutput.toFixed(1)} credits/sec
