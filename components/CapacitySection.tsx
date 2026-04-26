@@ -1,13 +1,26 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { CAPACITY_BUILDINGS } from '../engine/capacity';
+import {
+  CAPACITY_BUILDINGS,
+  getTotalCapacity,
+  getEfficiency,
+} from '../engine/capacity';
+import {
+  getTotalPowerDraw,
+  getTotalHeatOutput,
+} from '../engine/servers';
 import { useGameStore } from '../engine/store';
 import { CapacityMeter } from './CapacityMeter';
 import { CapacityRow } from './CapacityRow';
 
 export function CapacitySection() {
-  const power = useGameStore((state) => state.getPowerStats());
-  const cooling = useGameStore((state) => state.getCoolingStats());
+  const servers = useGameStore((state) => state.servers);
+  const capacity = useGameStore((state) => state.capacity);
+
+  const powerUsed = getTotalPowerDraw(servers);
+  const powerCap = getTotalCapacity(capacity, 'power');
+  const coolingUsed = getTotalHeatOutput(servers);
+  const coolingCap = getTotalCapacity(capacity, 'cooling');
 
   const powerBuildings = CAPACITY_BUILDINGS.filter((b) => b.resource === 'power');
   const coolingBuildings = CAPACITY_BUILDINGS.filter((b) => b.resource === 'cooling');
@@ -16,16 +29,11 @@ export function CapacitySection() {
     <View style={styles.container}>
       <Text style={styles.heading}>CAPACITY</Text>
 
-      <CapacityMeter
-        label="POWER"
-        used={power.used}
-        capacity={power.capacity}
-        unit="W"
-      />
+      <CapacityMeter label="POWER" used={powerUsed} capacity={powerCap} unit="W" />
       <CapacityMeter
         label="COOLING"
-        used={cooling.used}
-        capacity={cooling.capacity}
+        used={coolingUsed}
+        capacity={coolingCap}
         unit="BTU"
       />
 
