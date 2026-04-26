@@ -20,7 +20,7 @@ import { ServersScreen } from './components/ServersScreen';
 import { PowerScreen } from './components/PowerScreen';
 import { CoolingScreen } from './components/CoolingScreen';
 import { StaffScreen } from './components/StaffScreen';
-import { isStaffNavVisible } from './engine/staff';
+import { isStaffNavVisible, getResearchPointsPerSec } from './engine/staff';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -38,6 +38,7 @@ type Screen = 'main' | 'upgrades' | 'servers' | 'power' | 'cooling' | 'staff';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
+  const researchPoints = useGameStore((state) => state.researchPoints);
   const getCreditsPerSec = useGameStore((state) => state.getCreditsPerSec);
   const overclockEnabled = useGameStore((state) => state.overclockEnabled);
   const upgrades = useGameStore((state) => state.upgrades);
@@ -118,6 +119,9 @@ export default function App() {
   const netCps = cps - salary;
   const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
   const showStaffNav = isStaffNavVisible(getGateState());
+  const rpPerSec = getResearchPointsPerSec(staff);
+  const showResearch =
+    researchPoints > 0 || rpPerSec > 0 || getGateState().researchLabOwned;
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
 
@@ -187,6 +191,15 @@ export default function App() {
           )}
           {vendorDiscountAvailable && (
             <Text style={styles.discountBadge}>💰 50% OFF NEXT SERVER</Text>
+          )}
+          {showResearch && (
+            <View style={styles.researchRow}>
+              <Text style={styles.researchLabel}>🔬 RESEARCH</Text>
+              <Text style={styles.researchValue}>
+                {researchPoints.toFixed(1)} RP
+                {rpPerSec > 0 ? ` · +${rpPerSec.toFixed(2)}/sec` : ''}
+              </Text>
+            </View>
           )}
 
           <View style={styles.divider} />
@@ -412,6 +425,27 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 6,
     textAlign: 'center',
+  },
+  researchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a4a',
+  },
+  researchLabel: {
+    color: '#888',
+    fontSize: 10,
+    letterSpacing: 2,
+    fontWeight: 'bold',
+  },
+  researchValue: {
+    color: '#cc88ff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    fontVariant: ['tabular-nums'],
   },
   divider: {
     height: 1,

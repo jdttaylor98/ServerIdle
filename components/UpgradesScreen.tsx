@@ -18,6 +18,7 @@ import { ScreenHeader } from './ScreenHeader';
 const ERAS: { era: UpgradeEra; label: string }[] = [
   { era: 'homelab', label: 'HOMELAB' },
   { era: 'rack', label: 'RACK' },
+  { era: 'datacenter', label: 'DATA CENTER' },
 ];
 
 interface Props {

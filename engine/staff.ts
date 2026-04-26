@@ -7,6 +7,7 @@ export interface GateState {
   diskFullResolvedCount: number;
   vendorOfferAcceptedCount: number;
   hotSwapOwned: boolean;
+  researchLabOwned: boolean;
   totalStaffHired: number;
 }
 
@@ -85,6 +86,18 @@ export const STAFF_ROLES: StaffRole[] = [
     unlockHint: 'Accept a Vendor Offer',
   },
   {
+    id: 'data_scientist',
+    name: 'Data Scientist',
+    icon: '🧪',
+    description: 'Trains models on yesterday\'s logs. Drinks cold brew.',
+    effectHint: 'Generates 0.1 Research Points/sec per hire',
+    hireCost: 50_000,
+    costScaling: 1.20,
+    salary: 5,
+    isUnlocked: (g) => g.researchLabOwned,
+    unlockHint: 'Buy the Research Lab upgrade',
+  },
+  {
     id: 'engineering_manager',
     name: 'Engineering Manager',
     icon: '👔',
@@ -116,6 +129,13 @@ function getManagerBoost(staff: Record<string, number>): number {
 /** Multiplier applied to server + cluster output. 1.0 if no staff. */
 export function getStaffOutputMultiplier(staff: Record<string, number>): number {
   return 1 + 0.05 * getCount(staff, 'devops_engineer') * getManagerBoost(staff);
+}
+
+/** Research points generated per second by the Data Scientist staff. */
+export function getResearchPointsPerSec(
+  staff: Record<string, number>
+): number {
+  return 0.1 * getCount(staff, 'data_scientist') * getManagerBoost(staff);
 }
 
 /** Total salary drain in credits per second. */

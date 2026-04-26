@@ -1,5 +1,7 @@
 export type UpgradeEra = 'homelab' | 'rack' | 'datacenter' | 'cloud' | 'ai';
 
+
+
 export interface Upgrade {
   id: string;
   name: string;
@@ -113,6 +115,18 @@ export const UPGRADES: Upgrade[] = [
     era: 'rack',
     cost: 30000,
     prereqs: ['load_balancing'],
+  },
+
+  // ───── DATA CENTER ERA ─────
+  {
+    id: 'research_lab',
+    name: 'Research Lab',
+    description: 'Unlock Data Scientist hires and start generating Research Points',
+    era: 'datacenter',
+    cost: 250_000,
+    prereqs: [],
+    unlockCheck: (servers) => (servers['datacenter'] ?? 0) >= 1,
+    unlockHint: 'Build a Data Center',
   },
 ];
 

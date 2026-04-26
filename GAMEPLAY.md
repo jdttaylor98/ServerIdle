@@ -140,6 +140,7 @@ Most roles are **gated behind events** — you have to play through the relevant
 | 🖥 SysAdmin | 8,000 | 0.8/sec | Disk Full incidents stop occurring | Resolve a Disk Full |
 | 📈 SRE | 25,000 | 2.5/sec | Overclock failure chance −15% per hire | Buy Hot Swap upgrade |
 | 💼 Sales Engineer | 15,000 | 1.5/sec | Vendor Offer rate +25% per hire | Accept a Vendor Offer |
+| 🧪 Data Scientist | 50,000 | 5/sec | Generates 0.1 Research Points/sec per hire | Buy Research Lab upgrade |
 | 👔 Engineering Manager | 100,000 | 10/sec | All other staff effects ×1.25 per hire | Hire 10 total staff |
 
 **Mechanics:**
@@ -182,6 +183,21 @@ Once you've got a few Racks, the **OVERCLOCK** button becomes interesting:
 **Hot Swap upgrade (25k cr)** flips this entirely — failures stop destroying units. Overclock becomes free output. This is the first major "broken-feeling" moment — exactly the idle game payoff curve.
 
 ---
+
+## Research Points (Phase 5b)
+
+A **second currency** alongside credits, generated passively by **Data Scientist** staff.
+
+To unlock:
+1. Reach the Data Center era (own 1 Data Center)
+2. Buy the **Research Lab** upgrade in the Data Center upgrade era — 250,000 cr
+3. Hire Data Scientists from the Staff screen — they now appear unlocked
+
+Each Data Scientist generates **0.1 RP/sec**, multiplied by your Engineering Manager bonus. The dashboard shows total RP and the per-second rate once you've unlocked anything Research-related.
+
+**Research Points don't have a use yet.** They're the prerequisite currency for Phase 6's AI agents and the prestige skill tree. Stockpiling now sets up the endgame.
+
+(Research Points generate at full rate offline — no efficiency penalty, since they aren't gated by power/cooling.)
 
 ## Build queues
 
@@ -300,8 +316,8 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 
 ### Phase 5 — Data Center & Cloud
 - ~~Data Center tier with real-time build timers~~ ✅ shipped (Phase 5a)
-- **Research Points** + Data Scientist staff role (Phase 5b — next)
-- **Multi-region cloud** with separate income streams + latency tradeoffs (Phase 5c)
+- ~~Research Points + Data Scientist staff role~~ ✅ shipped (Phase 5b)
+- **Multi-region cloud** with separate income streams + latency tradeoffs (Phase 5c — next)
 - **Cost layer:** ongoing service costs, net income display (Phase 5d)
 
 ### Phase 6 — AI Endgame & Prestige
@@ -371,6 +387,11 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 | Hot Swap | 25,000 | Load Balancing | Overclock failures lose 0 units |
 | Rack Clustering | 30,000 | Load Balancing | Unlock Rack Cluster tier |
 | Blade Chassis | 50,000 | — | Blade output ×1.25 |
+
+### Upgrades (Data Center era)
+| Upgrade | Cost | Prereqs | Effect |
+|---|---|---|---|
+| Research Lab | 250,000 | Own 1 Data Center | Unlock Data Scientist + Research Points |
 
 ---
 
