@@ -159,24 +159,36 @@ A 4-Blade setup outputs `120 cr/sec` → pays back in ~8 minutes.
 
 This is the first real *gate*: you can't just rush past Pis with money — you have to actually keep Pis around. Buying this upgrade unlocks the **Pi Cluster** tier on the Servers screen.
 
-### Pi Cluster
+### Clusters
 
-A new buildable unit that **consumes** 10 Raspberry Pis to form one Cluster:
+Clusters consume server units of a tier and turn them into a single more efficient unit. Sell refunds credits but **does NOT return the consumed servers** — clustering is a one-way commitment.
+
+#### Pi Cluster
+Unlocked by the **Cluster Software** upgrade.
 
 | Stat | Value |
 |---|---|
 | Build cost | `2,000 cr` + **10 Pis** |
-| Cost scaling | 1.15× per buy |
-| Output | `0.5 × 10 × 1.5 = 7.5 cr/sec` (50% multiplier vs. 10 raw Pis) |
+| Output | `0.5 × 10 × 1.5 = 7.5 cr/sec` |
 | Power | `80W` (same as 10 Pis) |
 | Heat | `120 BTU` (same as 10 Pis) |
-| Inherits Pi upgrades | Yes — Containerization + SSD Upgrade also boost cluster output |
+| Inherits | Pi upgrades (Containerization + SSD) |
+
+#### Rack Cluster
+Unlocked by the **Rack Clustering** upgrade (`30K cr`, requires Load Balancing).
+
+| Stat | Value |
+|---|---|
+| Build cost | `50,000 cr` + **5 Rack Servers** |
+| Output | `5 × 5 × 1.5 = 37.5 cr/sec` |
+| Power | `1,750W` (same as 5 Racks) |
+| Heat | `2,500 BTU` (same as 5 Racks) |
+| Inherits | Rack upgrades (Load Balancing) |
 
 **Strategic tradeoffs:**
-- You commit your Pi inventory (selling clusters refunds credits but **does NOT** return the Pis)
-- A cluster is `1.5×` the output of the Pis it consumed — pure win on output
-- Same power/heat as the underlying Pis, so cooling/power decisions are unchanged
-- The cluster tier becomes more efficient than building more Pis once you have the upgrade
+- A cluster is `1.5×` the output of the servers it consumed — pure win on output
+- Same power/heat as the underlying servers, so cooling/power decisions are unchanged
+- Once unlocked, clusters become the most efficient credit-per-power-watt option for that tier
 
 ---
 
@@ -225,8 +237,7 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 ### Phase 4 — Live Systems
 - ~~Incidents (DDoS, Disk Full, Vendor Offer)~~ ✅ shipped
 - **More incidents:** memory leak, hacker breach minigame
-- ~~Cluster tier~~ ✅ shipped (Pi Cluster)
-- **Rack Cluster** (consume 5 Racks for a multiplier — coming with later upgrades)
+- ~~Cluster tier~~ ✅ shipped (Pi Cluster, Rack Cluster)
 - **Auto-provisioner** automation upgrades
 
 ### Phase 5 — Data Center & Cloud
@@ -259,11 +270,12 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 (All have 1.15× cost scaling per purchase)
 
 ### Clusters
-| Type | Build cost | Consumes | Output | Power | Heat |
-|---|---|---|---|---|---|
-| Pi Cluster | 2,000 cr | 10× Pi | 7.5 cr/sec | 80W | 120 BTU |
+| Type | Build cost | Consumes | Output | Power | Heat | Unlock |
+|---|---|---|---|---|---|---|
+| Pi Cluster | 2,000 cr | 10× Pi | 7.5 cr/sec | 80W | 120 BTU | Cluster Software |
+| Rack Cluster | 50,000 cr | 5× Rack | 37.5 cr/sec | 1,750W | 2,500 BTU | Rack Clustering |
 
-(Unlocks via Cluster Software upgrade. Inherits source-tier upgrade multipliers. 1.15× cost scaling.)
+(Inherit source-tier upgrade multipliers. 1.15× cost scaling.)
 
 ### Power buildings
 | Building | Cost | Provides |
@@ -298,6 +310,7 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 | Rack PDU | 2,000 | — | +500W power capacity |
 | Load Balancing | 8,000 | — | Rack output ×1.25 |
 | Hot Swap | 25,000 | Load Balancing | Overclock failures lose 0 units |
+| Rack Clustering | 30,000 | Load Balancing | Unlock Rack Cluster tier |
 | Blade Chassis | 50,000 | — | Blade output ×1.25 |
 
 ---

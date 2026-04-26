@@ -24,6 +24,17 @@ export const CLUSTER_TYPES: ClusterType[] = [
     outputMultiplier: 1.5,
     unlockUpgradeId: 'cluster_software',
   },
+  {
+    id: 'rack_cluster',
+    name: 'Rack Cluster',
+    description: 'Five racks lashed together with fiber and prayers.',
+    sourceTierId: 'rack',
+    sourceCount: 5,
+    buildCost: 50000,
+    costScaling: 1.15,
+    outputMultiplier: 1.5,
+    unlockUpgradeId: 'rack_clustering',
+  },
 ];
 
 export function getClusterCost(type: ClusterType, owned: number): number {

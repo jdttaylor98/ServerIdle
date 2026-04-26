@@ -106,6 +106,14 @@ export const UPGRADES: Upgrade[] = [
     cost: 50000,
     prereqs: [],
   },
+  {
+    id: 'rack_clustering',
+    name: 'Rack Clustering',
+    description: 'Unlock the Rack Cluster tier',
+    era: 'rack',
+    cost: 30000,
+    prereqs: ['load_balancing'],
+  },
 ];
 
 export function isUpgradeAvailable(

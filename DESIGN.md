@@ -91,6 +91,33 @@ Frequency tuned by Security skill tree branch.
 ### Auto-provisioner (Phase 4)
 First real automation. Auto-taps PROVISION at a fixed interval. Unlocked via Cron Jobs upgrade. Speeds up via Operations skill tree.
 
+### Staff (Phase 4.5)
+
+A separate unit category from servers and clusters. Each role has a unique passive effect — not just another cps source. Hire on its own **Staff** screen.
+
+**Roles (initial set):**
+| Role | Hire cost | Salary (cr/sec) | Effect | Gate |
+|---|---|---|---|---|
+| 🛠 DevOps Engineer | 5,000 | 0.5 | +5% global server output (stacks per hire) | Own 5 servers |
+| 🔒 Security Engineer | 10,000 | 1 | DDoS trigger rate −20% per hire (cap 90%) | Resolve first DDoS |
+| 🖥 SysAdmin | 8,000 | 0.8 | Auto-resolves Disk Full incidents | Resolve first Disk Full |
+| 📈 SRE | 25,000 | 2.5 | Overclock failure chance −15% per hire | Hot Swap upgrade owned |
+| 💼 Sales Engineer | 15,000 | 1.5 | Vendor Offer trigger rate +25% per hire | Accept first Vendor Offer |
+| 🧪 Data Scientist | 50,000 | 5 | Generates Research Points | "Research Lab" upgrade (Phase 5+) |
+| 👔 Engineering Manager | 100,000 | 10 | All staff effects ×1.25 per hire | Hire 10 staff total |
+
+**Mechanics:**
+- Hire cost scales 1.20× per hire (steeper than servers because effects stack)
+- **Salary is a per-tick credit drain.** Net cps = output − total salary. Display both.
+- Staff continue costing salary while offline (counts against offline earnings)
+- Fire any role for 50% refund of last hire price; salary stops
+- Soft caps where they make sense (Security can't drop incident rate to 0)
+- Some roles **gate behind events** to reward exploration (resolve a DDoS to unlock the Security Engineer)
+
+**Ties to existing systems:**
+- Maps real IT org structure to gameplay
+- Sets up the "AI agents replace staff" payoff in Phase 6
+
 ### Build queues (Phase 5)
 Big projects (Data Center, Cloud Region, GPU Cluster) take real time to build (1-10 minutes). Idle-friendly — set it and walk away. Skip with credits. **Do not** add wait times to small server purchases — that breaks the satisfying click loop.
 
