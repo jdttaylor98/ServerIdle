@@ -72,6 +72,7 @@ export interface GameState {
   upgrades: Record<string, boolean>; // upgrade id -> purchased
   staff: Record<string, number>; // role id -> count hired
   totalStaffEverHired: number; // cumulative count for "hire 10 staff" gate
+  activeBuild: { tierId: string; startedAt: number; completesAt: number } | null;
   overclockEnabled: boolean;
   cronTickAccumulator: number; // seconds accumulated toward next auto-tap
   activeIncident: ActiveIncident | null;
@@ -107,6 +108,7 @@ export interface GameState {
   tapProvision: () => void;
   buyServer: (tierId: string) => void;
   sellServer: (tierId: string) => void;
+  cancelBuild: () => void;
   buildCluster: (clusterId: string) => void;
   sellCluster: (clusterId: string) => void;
   buyCapacityBuilding: (buildingId: string) => void;
@@ -136,6 +138,7 @@ interface SaveData {
   upgrades: Record<string, boolean>;
   staff: Record<string, number>;
   totalStaffEverHired: number;
+  activeBuild: GameState['activeBuild'];
   overclockEnabled: boolean;
   vendorDiscountAvailable: boolean;
   ddosResolvedCount: number;
@@ -194,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   upgrades: {},
   staff: {},
   totalStaffEverHired: 0,
+  activeBuild: null,
   overclockEnabled: false,
   cronTickAccumulator: 0,
   activeIncident: null,
@@ -291,7 +295,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       overclockEnabled,
       cronTickAccumulator,
       activeIncident,
+      activeBuild,
     } = get();
+
+    // ─── Build queue completion ───
+    let nextServers = servers;
+    let nextActiveBuild = activeBuild;
+    if (activeBuild && Date.now() >= activeBuild.completesAt) {
+      const owned = servers[activeBuild.tierId] ?? 0;
+      nextServers = { ...servers, [activeBuild.tierId]: owned + 1 };
+      nextActiveBuild = null;
+    }
 
     // ─── Incident expiration / random trigger ───
     let nextIncident = activeIncident;
@@ -299,7 +313,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     let incidentResolution: GameState['lastIncidentResolution'] = null;
     if (nextIncident && Date.now() >= nextIncident.expiresAt) {
       // Timed out
-      const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, false, null);
+      const baseCps = calcCreditsPerSec(nextServers, clusters, capacity, upgrades, staff, false, null);
       if (nextIncident.type === 'ddos') {
         incidentPenalty = baseCps * INCIDENT_CONFIG.ddos.timeoutPenaltySecondsOfCps;
         incidentResolution = {
@@ -329,7 +343,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       nextIncident = null;
     } else if (!nextIncident) {
       // Roll for a new incident — only after the player has any servers/clusters
-      const totalServers = Object.values(servers).reduce((a, b) => a + b, 0);
+      const totalServers = Object.values(nextServers).reduce((a, b) => a + b, 0);
       const totalClusters = Object.values(clusters).reduce((a, b) => a + b, 0);
       if (
         totalServers + totalClusters > 0 &&
@@ -342,7 +356,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const cps = calcCreditsPerSec(
-      servers,
+      nextServers,
       clusters,
       capacity,
       upgrades,
@@ -366,23 +380,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     if (overclockEnabled) {
-      const totalServers = Object.values(servers).reduce((a, b) => a + b, 0);
+      const totalServers = Object.values(nextServers).reduce((a, b) => a + b, 0);
       const failureChance =
         OVERCLOCK_FAILURE_CHANCE * getOverclockFailureMultiplier(staff);
       if (totalServers > 0 && Math.random() < failureChance) {
         const lost = getOverclockFailureLost(upgrades);
         const ownedTiers = SERVER_TIERS.filter(
-          (t) => (servers[t.id] ?? 0) > 0
+          (t) => (nextServers[t.id] ?? 0) > 0
         );
         const victim =
           ownedTiers[Math.floor(Math.random() * ownedTiers.length)];
         set({
           credits: Math.max(0, credits + cps + cronCredits - salary - incidentPenalty),
           servers: lost
-            ? { ...servers, [victim.id]: servers[victim.id] - lost }
-            : servers,
+            ? { ...nextServers, [victim.id]: nextServers[victim.id] - lost }
+            : nextServers,
           overclockEnabled: false,
           cronTickAccumulator: cronAccum,
+          activeBuild: nextActiveBuild,
           activeIncident: nextIncident,
           lastIncidentResolution: incidentResolution,
           lastFailure: { tierId: victim.id, lost },
@@ -393,7 +408,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       credits: Math.max(0, credits + cps + cronCredits - salary - incidentPenalty),
+      servers: nextServers,
       cronTickAccumulator: cronAccum,
+      activeBuild: nextActiveBuild,
       activeIncident: nextIncident,
       lastIncidentResolution: incidentResolution,
     });
@@ -411,7 +428,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   buyServer: (tierId) => {
-    const { credits, servers, vendorDiscountAvailable } = get();
+    const { credits, servers, vendorDiscountAvailable, activeBuild } = get();
     const tier = SERVER_TIERS.find((t) => t.id === tierId);
     if (!tier) return;
 
@@ -420,10 +437,43 @@ export const useGameStore = create<GameState>((set, get) => ({
     const cost = vendorDiscountAvailable ? Math.floor(fullCost * 0.5) : fullCost;
     if (credits < cost) return;
 
+    // Tiers with a build time queue instead of being instant
+    if (tier.buildTimeSeconds && tier.buildTimeSeconds > 0) {
+      if (activeBuild) return; // only one build at a time
+      const now = Date.now();
+      set({
+        credits: credits - cost,
+        vendorDiscountAvailable: false,
+        activeBuild: {
+          tierId,
+          startedAt: now,
+          completesAt: now + tier.buildTimeSeconds * 1000,
+        },
+      });
+      return;
+    }
+
     set({
       credits: credits - cost,
       servers: { ...servers, [tierId]: owned + 1 },
-      vendorDiscountAvailable: false, // consumed
+      vendorDiscountAvailable: false,
+    });
+  },
+
+  cancelBuild: () => {
+    const { activeBuild, credits, servers } = get();
+    if (!activeBuild) return;
+    const tier = SERVER_TIERS.find((t) => t.id === activeBuild.tierId);
+    if (!tier) {
+      set({ activeBuild: null });
+      return;
+    }
+    // Refund 50% of the original cost
+    const owned = servers[activeBuild.tierId] ?? 0;
+    const refund = Math.floor(getServerCost(tier, owned) * 0.5);
+    set({
+      credits: credits + refund,
+      activeBuild: null,
     });
   },
 
@@ -696,6 +746,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       upgrades,
       staff,
       totalStaffEverHired,
+      activeBuild,
       overclockEnabled,
       vendorDiscountAvailable,
       ddosResolvedCount,
@@ -712,6 +763,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       upgrades,
       staff,
       totalStaffEverHired,
+      activeBuild,
       overclockEnabled,
       vendorDiscountAvailable,
       ddosResolvedCount,
@@ -748,8 +800,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     const savedVendor = data.vendorOfferAcceptedCount ?? 0;
     const savedTotalHired = data.totalStaffEverHired ?? 0;
 
+    // Build queue: complete it if its timer ran out while away
+    let savedServers = data.servers ?? {};
+    let savedBuild = data.activeBuild ?? null;
+    if (savedBuild && now >= savedBuild.completesAt) {
+      const owned = savedServers[savedBuild.tierId] ?? 0;
+      savedServers = { ...savedServers, [savedBuild.tierId]: owned + 1 };
+      savedBuild = null;
+    }
+
     const grossCps = calcCreditsPerSec(
-      data.servers ?? {},
+      savedServers,
       savedClusters,
       data.capacity ?? {},
       savedUpgrades,
@@ -758,18 +819,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       null
     );
     const salary = getTotalSalary(savedStaff);
-    const netCps = Math.max(0, grossCps - salary); // can't go negative offline
+    const netCps = Math.max(0, grossCps - salary);
     const newOffline = elapsedSec * netCps * OFFLINE_EFFICIENCY;
     const totalPending = (data.pendingOfflineEarnings || 0) + newOffline;
 
     set({
       credits: data.credits ?? 0,
-      servers: data.servers ?? {},
+      servers: savedServers,
       clusters: savedClusters,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       staff: savedStaff,
       totalStaffEverHired: savedTotalHired,
+      activeBuild: savedBuild,
       overclockEnabled: data.overclockEnabled ?? false,
       vendorDiscountAvailable: savedVendorDiscount,
       ddosResolvedCount: savedDdos,
@@ -783,12 +845,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const refreshed: SaveData = {
       credits: data.credits ?? 0,
-      servers: data.servers ?? {},
+      servers: savedServers,
       clusters: savedClusters,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       staff: savedStaff,
       totalStaffEverHired: savedTotalHired,
+      activeBuild: savedBuild,
       overclockEnabled: data.overclockEnabled ?? false,
       vendorDiscountAvailable: savedVendorDiscount,
       ddosResolvedCount: savedDdos,

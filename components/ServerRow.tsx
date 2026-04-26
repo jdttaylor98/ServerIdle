@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ServerTier, getServerCost, getServerOutput } from '../engine/servers';
 import { getServerOutputMultiplier } from '../engine/upgrades';
@@ -14,6 +14,8 @@ export function ServerRow({ tier }: Props) {
   const upgrades = useGameStore((state) => state.upgrades);
   const buyServer = useGameStore((state) => state.buyServer);
   const sellServer = useGameStore((state) => state.sellServer);
+  const activeBuild = useGameStore((state) => state.activeBuild);
+  const cancelBuild = useGameStore((state) => state.cancelBuild);
 
   const cost = getServerCost(tier, owned);
   const tierMult = getServerOutputMultiplier(tier.id, upgrades);
@@ -21,6 +23,18 @@ export function ServerRow({ tier }: Props) {
   const totalOutput = getServerOutput(tier, owned) * tierMult;
   const canAfford = credits >= cost;
   const refund = owned > 0 ? Math.floor(getServerCost(tier, owned - 1) * 0.5) : 0;
+
+  const isBuildingThis = activeBuild?.tierId === tier.id;
+  const isBuildingOther = !!activeBuild && !isBuildingThis;
+  const buildable = !!tier.buildTimeSeconds && tier.buildTimeSeconds > 0;
+
+  // Re-render every 250ms while a build is active so the timer ticks down
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!isBuildingThis) return;
+    const id = setInterval(() => setTick((t) => t + 1), 250);
+    return () => clearInterval(id);
+  }, [isBuildingThis]);
 
   return (
     <View style={styles.row}>
@@ -39,7 +53,19 @@ export function ServerRow({ tier }: Props) {
         </Text>
         <Text style={styles.consumption}>
           {tier.powerDraw}W · {tier.heatOutput} BTU per unit
+          {buildable
+            ? ` · ${formatDuration(tier.buildTimeSeconds!)} build`
+            : ''}
         </Text>
+
+        {isBuildingThis && (
+          <BuildIndicator
+            startedAt={activeBuild!.startedAt}
+            completesAt={activeBuild!.completesAt}
+            onCancel={cancelBuild}
+          />
+        )}
+
         {owned > 0 && (
           <TouchableOpacity
             style={styles.sellButton}
@@ -51,18 +77,64 @@ export function ServerRow({ tier }: Props) {
         )}
       </View>
 
-      <TouchableOpacity
-        style={[styles.buyButton, !canAfford && styles.buyButtonDisabled]}
-        onPress={() => buyServer(tier.id)}
-        disabled={!canAfford}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.buyText, !canAfford && styles.buyTextDisabled]}>
-          BUY
-        </Text>
-        <Text style={[styles.cost, !canAfford && styles.costDisabled]}>
-          {formatCost(cost)}
-        </Text>
+      {!isBuildingThis && (
+        <TouchableOpacity
+          style={[
+            styles.buyButton,
+            (!canAfford || isBuildingOther) && styles.buyButtonDisabled,
+          ]}
+          onPress={() => buyServer(tier.id)}
+          disabled={!canAfford || isBuildingOther}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.buyText,
+              (!canAfford || isBuildingOther) && styles.buyTextDisabled,
+            ]}
+          >
+            {buildable ? 'BUILD' : 'BUY'}
+          </Text>
+          <Text
+            style={[
+              styles.cost,
+              (!canAfford || isBuildingOther) && styles.costDisabled,
+            ]}
+          >
+            {formatCost(cost)}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+function BuildIndicator({
+  startedAt,
+  completesAt,
+  onCancel,
+}: {
+  startedAt: number;
+  completesAt: number;
+  onCancel: () => void;
+}) {
+  const now = Date.now();
+  const total = completesAt - startedAt;
+  const elapsed = Math.min(total, now - startedAt);
+  const remainingMs = Math.max(0, completesAt - now);
+  const fillWidth = `${Math.min(100, (elapsed / total) * 100)}%` as const;
+
+  return (
+    <View style={styles.buildBox}>
+      <View style={styles.buildHeader}>
+        <Text style={styles.buildLabel}>BUILDING…</Text>
+        <Text style={styles.buildTimer}>{formatMs(remainingMs)}</Text>
+      </View>
+      <View style={styles.buildTrack}>
+        <View style={[styles.buildFill, { width: fillWidth }]} />
+      </View>
+      <TouchableOpacity onPress={onCancel} style={styles.cancelButton}>
+        <Text style={styles.cancelText}>Cancel · 50% refund</Text>
       </TouchableOpacity>
     </View>
   );
@@ -72,6 +144,18 @@ function formatCost(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return `${n}`;
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds >= 60) return `${Math.round(seconds / 60)}min`;
+  return `${seconds}s`;
+}
+
+function formatMs(ms: number): string {
+  const s = Math.ceil(ms / 1000);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
 }
 
 const styles = StyleSheet.create({
@@ -120,6 +204,50 @@ const styles = StyleSheet.create({
     color: '#555',
     fontSize: 10,
     marginTop: 2,
+  },
+  buildBox: {
+    backgroundColor: '#0d0d1a',
+    borderWidth: 1,
+    borderColor: '#00ff88',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+  },
+  buildHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  buildLabel: {
+    color: '#00ff88',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+  },
+  buildTimer: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+    fontVariant: ['tabular-nums'],
+  },
+  buildTrack: {
+    height: 6,
+    backgroundColor: '#1a1a2e',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  buildFill: {
+    height: '100%',
+    backgroundColor: '#00ff88',
+  },
+  cancelButton: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  cancelText: {
+    color: '#ff7755',
+    fontSize: 10,
+    textDecorationLine: 'underline',
   },
   sellButton: {
     marginTop: 6,

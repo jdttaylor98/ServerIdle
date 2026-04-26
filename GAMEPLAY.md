@@ -28,6 +28,7 @@ The game intentionally hides systems you can't yet engage with — they appear a
 |---|---|
 | Rack Server | Own 5 Raspberry Pis |
 | Blade Server | Own 1 Rack Server |
+| Data Center | Own 1 Blade Server |
 | PDU / AC Unit | Own 1 of the previous tier (Power Strip / Desk Fan) |
 | UPS / Liquid Cooling | Own 1 of the previous tier (PDU / AC Unit) |
 | Generator / Industrial HVAC | Own 1 of the previous tier (UPS / Liquid Cooling) |
@@ -182,6 +183,20 @@ Once you've got a few Racks, the **OVERCLOCK** button becomes interesting:
 
 ---
 
+## Build queues
+
+Some structures are too big to spin up instantly. **Data Centers** (and other large facilities coming in later phases) require real-time **build timers** instead of instant purchase.
+
+When you click BUILD on a buildable tier:
+- Credits are deducted immediately
+- A timer starts counting down on that row
+- BUILD buttons on *all* buildable tiers are disabled until the current build completes (one global build slot)
+- You can **cancel** at any time for a 50% refund
+- The unit is added to your inventory the moment the timer hits zero
+- **Build progress continues offline** — close the app, come back, and your build is done
+
+Pi / Rack / Blade are still instant. Build queues only kick in for Data Center tier and up.
+
 ## Phase 5 — Blade Servers (~30+ minutes)
 
 **Blade Server** — `$5,000`, `1,200W power`, `1,800 BTU heat`, **`30 cr/sec`** (60× a Pi)
@@ -284,10 +299,10 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 - **Data Scientist** role and **Auto-provisioner upgrades** deferred to after Phase 5
 
 ### Phase 5 — Data Center & Cloud
-- **Data Center** tier with real-time build timers (1-10 minute waits, idle-friendly)
-- **Multi-region cloud** with separate income streams + latency tradeoffs
-- **Cost layer:** ongoing service costs, net income display
-- **Compute units** + **Research Points** as new resources
+- ~~Data Center tier with real-time build timers~~ ✅ shipped (Phase 5a)
+- **Research Points** + Data Scientist staff role (Phase 5b — next)
+- **Multi-region cloud** with separate income streams + latency tradeoffs (Phase 5c)
+- **Cost layer:** ongoing service costs, net income display (Phase 5d)
 
 ### Phase 6 — AI Endgame & Prestige
 - **GPU hardware** tier (power-hungry, generates Research Points)
@@ -304,13 +319,14 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 ## Quick reference: full unit table
 
 ### Servers
-| Tier | Cost (base) | Output | Power | Heat |
-|---|---|---|---|---|
-| Raspberry Pi | 10 cr | 0.5 cr/sec | 8W | 12 BTU |
-| Rack Server | 250 cr | 5 cr/sec | 350W | 500 BTU |
-| Blade Server | 5,000 cr | 30 cr/sec | 1,200W | 1,800 BTU |
+| Tier | Cost (base) | Output | Power | Heat | Build time |
+|---|---|---|---|---|---|
+| Raspberry Pi | 10 cr | 0.5 cr/sec | 8W | 12 BTU | instant |
+| Rack Server | 250 cr | 5 cr/sec | 350W | 500 BTU | instant |
+| Blade Server | 5,000 cr | 30 cr/sec | 1,200W | 1,800 BTU | instant |
+| Data Center | 500,000 cr | 500 cr/sec | 5,000W | 7,000 BTU | **5 minutes** |
 
-(All have 1.15× cost scaling per purchase)
+(All have 1.15× cost scaling per purchase. Data Center reveals after owning 1 Blade.)
 
 ### Clusters
 | Type | Build cost | Consumes | Output | Power | Heat | Unlock |

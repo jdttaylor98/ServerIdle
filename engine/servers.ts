@@ -7,6 +7,7 @@ export interface ServerTier {
   costScaling: number; // multiplier per purchase
   powerDraw: number; // watts consumed per unit
   heatOutput: number; // BTU generated per unit
+  buildTimeSeconds?: number; // if set, purchase queues a build instead of being instant
 }
 
 export const SERVER_TIERS: ServerTier[] = [
@@ -40,6 +41,17 @@ export const SERVER_TIERS: ServerTier[] = [
     powerDraw: 1200,
     heatOutput: 1800,
   },
+  {
+    id: 'datacenter',
+    name: 'Data Center',
+    description: 'A whole room. Walk in, feel small.',
+    baseCost: 500_000,
+    baseOutput: 500,
+    costScaling: 1.15,
+    powerDraw: 5_000,
+    heatOutput: 7_000,
+    buildTimeSeconds: 300, // 5 minutes
+  },
 ];
 
 export function isServerTierVisible(
@@ -49,6 +61,7 @@ export function isServerTierVisible(
   if (tierId === 'pi') return true;
   if (tierId === 'rack') return (servers['pi'] ?? 0) >= 5;
   if (tierId === 'blade') return (servers['rack'] ?? 0) >= 1;
+  if (tierId === 'datacenter') return (servers['blade'] ?? 0) >= 1;
   return true;
 }
 
