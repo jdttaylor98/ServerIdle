@@ -13,7 +13,7 @@ export function ServerRow({ tier }: Props) {
   const buyServer = useGameStore((state) => state.buyServer);
 
   const cost = getServerCost(tier, owned);
-  const output = getServerOutput(tier, owned);
+  const totalOutput = getServerOutput(tier, owned);
   const canAfford = credits >= cost;
 
   return (
@@ -24,8 +24,11 @@ export function ServerRow({ tier }: Props) {
           <Text style={styles.owned}>×{owned}</Text>
         </View>
         <Text style={styles.description}>{tier.description}</Text>
+        <Text style={styles.perUnit}>
+          {tier.baseOutput.toFixed(1)} credits/sec each
+        </Text>
         <Text style={styles.output}>
-          {output.toFixed(1)} credits/sec
+          Total: {totalOutput.toFixed(1)} credits/sec
         </Text>
       </View>
 
@@ -85,8 +88,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginBottom: 4,
   },
+  perUnit: {
+    color: '#666',
+    fontSize: 11,
+    marginBottom: 2,
+  },
   output: {
-    color: '#888',
+    color: '#00ff88',
     fontSize: 12,
   },
   buyButton: {

@@ -77,17 +77,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (overclockEnabled) {
       const totalServers = Object.values(servers).reduce((a, b) => a + b, 0);
       if (totalServers > 0 && Math.random() < OVERCLOCK_FAILURE_CHANCE) {
-        // Pick a random tier the player owns and wipe it
+        // Pick a random tier the player owns and destroy ONE unit
         const ownedTiers = SERVER_TIERS.filter(
           (t) => (servers[t.id] ?? 0) > 0
         );
         const victim = ownedTiers[Math.floor(Math.random() * ownedTiers.length)];
-        const lost = servers[victim.id];
         set({
           credits: credits + cps,
-          servers: { ...servers, [victim.id]: 0 },
+          servers: { ...servers, [victim.id]: servers[victim.id] - 1 },
           overclockEnabled: false,
-          lastFailure: { tierId: victim.id, lost },
+          lastFailure: { tierId: victim.id, lost: 1 },
         });
         return;
       }
