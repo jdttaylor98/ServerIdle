@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import {
   getUpgradesByEra,
-  getUpgradeDepth,
+  Upgrade,
   UpgradeEra,
 } from '../engine/upgrades';
 import { useGameStore } from '../engine/store';
@@ -22,6 +22,39 @@ const ERAS: { era: UpgradeEra; label: string }[] = [
 
 interface Props {
   onClose: () => void;
+}
+
+interface TreeNode {
+  upgrade: Upgrade;
+  children: TreeNode[];
+}
+
+function buildTree(upgrades: Upgrade[]): TreeNode[] {
+  const byId = new Map(upgrades.map((u) => [u.id, u]));
+  const childrenOf = new Map<string, Upgrade[]>();
+
+  // Group children by their first prereq (each upgrade renders under its first parent)
+  for (const u of upgrades) {
+    if (u.prereqs.length === 0) continue;
+    const parentId = u.prereqs[0];
+    if (!byId.has(parentId)) continue;
+    if (!childrenOf.has(parentId)) childrenOf.set(parentId, []);
+    childrenOf.get(parentId)!.push(u);
+  }
+
+  function makeNode(u: Upgrade): TreeNode {
+    const kids = (childrenOf.get(u.id) ?? []).sort((a, b) => a.cost - b.cost);
+    return {
+      upgrade: u,
+      children: kids.map(makeNode),
+    };
+  }
+
+  // Roots = upgrades with no prereqs (sorted by cost)
+  return upgrades
+    .filter((u) => u.prereqs.length === 0)
+    .sort((a, b) => a.cost - b.cost)
+    .map(makeNode);
 }
 
 export function UpgradesScreen({ onClose }: Props) {
@@ -45,39 +78,34 @@ export function UpgradesScreen({ onClose }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {ERAS.map(({ era, label }) => {
-          const upgrades = getUpgradesByEra(era);
-          // Sort by (depth, cost) so roots appear first
-          const sorted = [...upgrades].sort((a, b) => {
-            const depthDiff = getUpgradeDepth(a.id) - getUpgradeDepth(b.id);
-            if (depthDiff !== 0) return depthDiff;
-            return a.cost - b.cost;
-          });
-
+          const tree = buildTree(getUpgradesByEra(era));
           return (
             <View key={era} style={styles.eraSection}>
               <Text style={styles.eraLabel}>{label}</Text>
-              {sorted.map((upgrade) => {
-                const depth = getUpgradeDepth(upgrade.id);
-                return (
-                  <View
-                    key={upgrade.id}
-                    style={[
-                      styles.row,
-                      { marginLeft: depth * 18 },
-                    ]}
-                  >
-                    {depth > 0 && <View style={styles.connector} />}
-                    <View style={styles.cardWrap}>
-                      <UpgradeCard upgrade={upgrade} />
-                    </View>
-                  </View>
-                );
-              })}
+              {tree.map((node) => (
+                <TreeNodeRow key={node.upgrade.id} node={node} depth={0} />
+              ))}
             </View>
           );
         })}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function TreeNodeRow({ node, depth }: { node: TreeNode; depth: number }) {
+  return (
+    <View>
+      <View style={[styles.row, { marginLeft: depth * 18 }]}>
+        {depth > 0 && <View style={styles.connector} />}
+        <View style={styles.cardWrap}>
+          <UpgradeCard upgrade={node.upgrade} />
+        </View>
+      </View>
+      {node.children.map((child) => (
+        <TreeNodeRow key={child.upgrade.id} node={child} depth={depth + 1} />
+      ))}
+    </View>
   );
 }
 

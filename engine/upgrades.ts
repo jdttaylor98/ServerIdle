@@ -124,12 +124,6 @@ export function getUpgradesByEra(era: UpgradeEra): Upgrade[] {
   return UPGRADES.filter((u) => u.era === era);
 }
 
-export function getUpgradeDepth(upgradeId: string): number {
-  const upgrade = UPGRADES.find((u) => u.id === upgradeId);
-  if (!upgrade || upgrade.prereqs.length === 0) return 0;
-  return 1 + Math.max(...upgrade.prereqs.map((id) => getUpgradeDepth(id)));
-}
-
 // ─── Effect helpers ───
 
 export function getClickCreditBonus(purchased: Record<string, boolean>): number {
