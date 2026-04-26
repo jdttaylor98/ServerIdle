@@ -18,7 +18,6 @@ import {
   isUpgradeAvailable,
   getClickCreditBonus,
   getClickCreditMultiplier,
-  getClickUptimeBonus,
   getServerOutputMultiplier,
   getOverclockFailureLost,
   hasCronJobs,
@@ -34,11 +33,6 @@ const BASE_CREDITS_PER_SEC = 0; // no passive income without servers
 const OVERCLOCK_MULTIPLIER = 1.5; // +50% output
 const OVERCLOCK_FAILURE_CHANCE = 0.005; // 0.5% per tick
 
-const UPTIME_DECAY_PER_TICK = 0.2; // % per second while foregrounded
-const UPTIME_FLOOR = 50; // never drops below this
-const UPTIME_GAIN_TAP = 2;
-const UPTIME_GAIN_PURCHASE = 5;
-
 const CRON_JOBS_INTERVAL_SEC = 5; // auto-tap every N seconds when Cron Jobs purchased
 
 export interface GameState {
@@ -47,7 +41,6 @@ export interface GameState {
   capacity: Record<string, number>; // capacity building id -> count
   upgrades: Record<string, boolean>; // upgrade id -> purchased
   overclockEnabled: boolean;
-  uptime: number; // 0-100, global output multiplier (with floor)
   cronTickAccumulator: number; // seconds accumulated toward next auto-tap
   lastFailure: { tierId: string; lost: number } | null;
 
@@ -81,21 +74,15 @@ interface SaveData {
   capacity: Record<string, number>;
   upgrades: Record<string, boolean>;
   overclockEnabled: boolean;
-  uptime: number;
   savedAt: number;
   pendingOfflineEarnings: number;
-}
-
-function getUptimeMultiplier(uptime: number): number {
-  return Math.max(UPTIME_FLOOR, uptime) / 100;
 }
 
 function calcCreditsPerSec(
   servers: Record<string, number>,
   capacity: Record<string, number>,
   upgrades: Record<string, boolean>,
-  overclockEnabled: boolean,
-  uptime: number
+  overclockEnabled: boolean
 ): number {
   // Sum each tier's output WITH its upgrade multiplier applied
   const baseOutput =
@@ -116,9 +103,8 @@ function calcCreditsPerSec(
     getTotalCapacity(capacity, 'cooling')
   );
   const efficiency = Math.min(powerEff, coolingEff);
-  const uptimeMult = getUptimeMultiplier(uptime);
 
-  return baseOutput * overclockMult * efficiency * uptimeMult;
+  return baseOutput * overclockMult * efficiency;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -127,7 +113,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   capacity: {},
   upgrades: {},
   overclockEnabled: false,
-  uptime: 100,
   cronTickAccumulator: 0,
   lastFailure: null,
   lastSavedAt: Date.now(),
@@ -135,8 +120,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   hydrated: false,
 
   getCreditsPerSec: () => {
-    const { servers, capacity, upgrades, overclockEnabled, uptime } = get();
-    return calcCreditsPerSec(servers, capacity, upgrades, overclockEnabled, uptime);
+    const { servers, capacity, upgrades, overclockEnabled } = get();
+    return calcCreditsPerSec(servers, capacity, upgrades, overclockEnabled);
   },
 
   getPowerStats: () => {
@@ -172,29 +157,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       capacity,
       upgrades,
       overclockEnabled,
-      uptime,
       cronTickAccumulator,
     } = get();
-    const cps = calcCreditsPerSec(
-      servers,
-      capacity,
-      upgrades,
-      overclockEnabled,
-      uptime
-    );
-    const newUptime = Math.max(0, uptime - UPTIME_DECAY_PER_TICK);
+    const cps = calcCreditsPerSec(servers, capacity, upgrades, overclockEnabled);
 
     // Cron Jobs: auto-tap every 5 seconds if purchased
     let cronAccum = cronTickAccumulator + 1;
     let cronCredits = 0;
-    let cronUptime = 0;
     if (hasCronJobs(upgrades) && cronAccum >= CRON_JOBS_INTERVAL_SEC) {
       const taps = Math.floor(cronAccum / CRON_JOBS_INTERVAL_SEC);
       cronAccum = cronAccum % CRON_JOBS_INTERVAL_SEC;
       const perTap =
         (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
       cronCredits = perTap * taps;
-      cronUptime = (UPTIME_GAIN_TAP + getClickUptimeBonus(upgrades)) * taps;
     }
 
     if (overclockEnabled) {
@@ -212,7 +187,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             ? { ...servers, [victim.id]: servers[victim.id] - lost }
             : servers,
           overclockEnabled: false,
-          uptime: Math.min(100, newUptime + cronUptime),
           cronTickAccumulator: cronAccum,
           lastFailure: { tierId: victim.id, lost },
         });
@@ -222,7 +196,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set({
       credits: credits + cps + cronCredits,
-      uptime: Math.min(100, newUptime + cronUptime),
       cronTickAccumulator: cronAccum,
     });
   },
@@ -232,18 +205,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapProvision: () => {
-    const { credits, uptime, upgrades } = get();
+    const { credits, upgrades } = get();
     const tapCredits =
       (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
-    const tapUptime = UPTIME_GAIN_TAP + getClickUptimeBonus(upgrades);
-    set({
-      credits: credits + tapCredits,
-      uptime: Math.min(100, uptime + tapUptime),
-    });
+    set({ credits: credits + tapCredits });
   },
 
   buyServer: (tierId) => {
-    const { credits, servers, uptime } = get();
+    const { credits, servers } = get();
     const tier = SERVER_TIERS.find((t) => t.id === tierId);
     if (!tier) return;
 
@@ -254,12 +223,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       credits: credits - cost,
       servers: { ...servers, [tierId]: owned + 1 },
-      uptime: Math.min(100, uptime + UPTIME_GAIN_PURCHASE),
     });
   },
 
   buyCapacityBuilding: (buildingId) => {
-    const { credits, capacity, uptime } = get();
+    const { credits, capacity } = get();
     const building = CAPACITY_BUILDINGS.find((b) => b.id === buildingId);
     if (!building) return;
 
@@ -270,7 +238,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       credits: credits - cost,
       capacity: { ...capacity, [buildingId]: owned + 1 },
-      uptime: Math.min(100, uptime + UPTIME_GAIN_PURCHASE),
     });
   },
 
@@ -313,7 +280,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       capacity,
       upgrades,
       overclockEnabled,
-      uptime,
       pendingOfflineEarnings,
     } = get();
     const now = Date.now();
@@ -323,7 +289,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       capacity,
       upgrades,
       overclockEnabled,
-      uptime,
       savedAt: now,
       pendingOfflineEarnings,
     };
@@ -346,14 +311,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       MAX_OFFLINE_SECONDS
     );
 
-    const savedUptime = data.uptime ?? 100;
     const savedUpgrades = data.upgrades ?? {};
     const cps = calcCreditsPerSec(
       data.servers ?? {},
       data.capacity ?? {},
       savedUpgrades,
-      data.overclockEnabled ?? false,
-      savedUptime
+      data.overclockEnabled ?? false
     );
     const newOffline = elapsedSec * cps * OFFLINE_EFFICIENCY;
     const totalPending = (data.pendingOfflineEarnings || 0) + newOffline;
@@ -364,7 +327,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       overclockEnabled: data.overclockEnabled ?? false,
-      uptime: savedUptime,
       pendingOfflineEarnings: totalPending,
       lastSavedAt: now,
       hydrated: true,
@@ -376,7 +338,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       overclockEnabled: data.overclockEnabled ?? false,
-      uptime: savedUptime,
       savedAt: now,
       pendingOfflineEarnings: totalPending,
     };

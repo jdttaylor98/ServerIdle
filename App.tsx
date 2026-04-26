@@ -15,18 +15,17 @@ import { ServerList } from './components/ServerList';
 import { OverclockToggle } from './components/OverclockToggle';
 import { FailureNotice } from './components/FailureNotice';
 import { CapacitySection } from './components/CapacitySection';
-import { UptimeIndicator } from './components/UptimeIndicator';
-import { UpgradeTree } from './components/UpgradeTree';
+import { UpgradesScreen } from './components/UpgradesScreen';
 import {
   getClickCreditBonus,
   getClickCreditMultiplier,
-  getClickUptimeBonus,
 } from './engine/upgrades';
+
+type Screen = 'main' | 'upgrades';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
   const getCreditsPerSec = useGameStore((state) => state.getCreditsPerSec);
-  const servers = useGameStore((state) => state.servers);
   const overclockEnabled = useGameStore((state) => state.overclockEnabled);
   const upgrades = useGameStore((state) => state.upgrades);
   const tapProvision = useGameStore((state) => state.tapProvision);
@@ -35,18 +34,17 @@ export default function App() {
   const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
 
   const [showWelcome, setShowWelcome] = useState(false);
+  const [view, setView] = useState<Screen>('main');
   const hasLoaded = useRef(false);
 
   useTicker();
 
-  // Cold open
   useEffect(() => {
     if (hasLoaded.current) return;
     hasLoaded.current = true;
     loadGame();
   }, []);
 
-  // Show welcome modal whenever pending offline earnings appear
   useEffect(() => {
     if (pendingOfflineEarnings >= 1) setShowWelcome(true);
   }, [pendingOfflineEarnings]);
@@ -54,7 +52,15 @@ export default function App() {
   const cps = getCreditsPerSec();
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
-  const tapUptime = 2 + getClickUptimeBonus(upgrades);
+
+  if (view === 'upgrades') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <UpgradesScreen onClose={() => setView('main')} />
+      </>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -72,20 +78,27 @@ export default function App() {
 
       <FailureNotice />
 
+      <View style={styles.topBar}>
+        <Text style={styles.title}>SERVER IDLE</Text>
+        <TouchableOpacity
+          onPress={() => setView('upgrades')}
+          style={styles.navButton}
+        >
+          <Text style={styles.navText}>UPGRADES →</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>SERVER IDLE</Text>
-
         <View style={styles.statsBox}>
           <Text style={styles.credits}>{Math.floor(credits).toLocaleString()}</Text>
           <Text style={styles.creditsLabel}>credits</Text>
           <Text style={[styles.perSec, overclockEnabled && styles.perSecBoosted]}>
             {cps.toFixed(1)} / sec {overclockEnabled ? '⚡' : ''}
           </Text>
-          <UptimeIndicator />
         </View>
 
         <TouchableOpacity
@@ -96,13 +109,12 @@ export default function App() {
           <Text style={styles.clickButtonText}>PROVISION</Text>
           <Text style={styles.clickButtonSub}>
             +{tapCredits % 1 === 0 ? tapCredits : tapCredits.toFixed(1)} credit
-            {tapCredits === 1 ? '' : 's'} · +{tapUptime}% uptime
+            {tapCredits === 1 ? '' : 's'}
           </Text>
         </TouchableOpacity>
 
         <OverclockToggle />
         <ServerList />
-        <UpgradeTree />
         <CapacitySection />
       </ScrollView>
     </SafeAreaView>
@@ -114,6 +126,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0d0d1a',
   },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a2e',
+  },
+  title: {
+    color: '#00ff88',
+    fontSize: 18,
+    fontWeight: 'bold',
+    letterSpacing: 3,
+  },
+  navButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#2a2a4a',
+    borderRadius: 6,
+  },
+  navText: {
+    color: '#00ff88',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
   scroll: {
     flex: 1,
   },
@@ -122,26 +162,19 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: 'center',
   },
-  title: {
-    color: '#00ff88',
-    fontSize: 22,
-    fontWeight: 'bold',
-    letterSpacing: 4,
-    marginBottom: 24,
-    marginTop: 8,
-  },
   statsBox: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+    marginTop: 8,
   },
   credits: {
     color: '#ffffff',
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: 'bold',
   },
   creditsLabel: {
     color: '#888',
-    fontSize: 14,
+    fontSize: 13,
     marginTop: -4,
   },
   perSec: {
@@ -160,7 +193,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 48,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 18,
   },
   clickButtonText: {
     color: '#00ff88',

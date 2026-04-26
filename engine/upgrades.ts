@@ -23,14 +23,6 @@ export const UPGRADES: Upgrade[] = [
     prereqs: [],
   },
   {
-    id: 'caffeine_iv',
-    name: 'Caffeine IV',
-    description: '+1% uptime per PROVISION tap',
-    era: 'homelab',
-    cost: 150,
-    prereqs: [],
-  },
-  {
     id: 'cron_jobs',
     name: 'Cron Jobs',
     description: 'Auto-tap PROVISION every 5 seconds',
@@ -132,6 +124,12 @@ export function getUpgradesByEra(era: UpgradeEra): Upgrade[] {
   return UPGRADES.filter((u) => u.era === era);
 }
 
+export function getUpgradeDepth(upgradeId: string): number {
+  const upgrade = UPGRADES.find((u) => u.id === upgradeId);
+  if (!upgrade || upgrade.prereqs.length === 0) return 0;
+  return 1 + Math.max(...upgrade.prereqs.map((id) => getUpgradeDepth(id)));
+}
+
 // ─── Effect helpers ───
 
 export function getClickCreditBonus(purchased: Record<string, boolean>): number {
@@ -145,12 +143,6 @@ export function getClickCreditMultiplier(
   purchased: Record<string, boolean>
 ): number {
   return purchased['hyperthreading'] ? 1.5 : 1;
-}
-
-export function getClickUptimeBonus(
-  purchased: Record<string, boolean>
-): number {
-  return purchased['caffeine_iv'] ? 1 : 0;
 }
 
 export function getServerOutputMultiplier(
