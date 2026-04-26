@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useGameStore } from './engine/store';
@@ -10,31 +10,42 @@ export default function App() {
   const creditsPerSec = useGameStore((state) => state.creditsPerSec);
   const addCredits = useGameStore((state) => state.addCredits);
   const loadGame = useGameStore((state) => state.loadGame);
+  const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
+  const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
 
-  const [offlineEarnings, setOfflineEarnings] = useState(0);
   const [showWelcome, setShowWelcome] = useState(false);
+  const hasLoaded = useRef(false);
 
-  // Start the tick engine
+  // Start the tick engine + AppState listeners
   useTicker();
 
-  // Load save on mount
+  // Cold open: load save once on mount
   useEffect(() => {
-    loadGame().then((earned) => {
-      if (earned >= 1) {
-        setOfflineEarnings(earned);
-        setShowWelcome(true);
-      }
-    });
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+    loadGame();
   }, []);
+
+  // Show modal whenever pending offline earnings arrive (cold open or foreground return)
+  useEffect(() => {
+    if (pendingOfflineEarnings >= 1) {
+      setShowWelcome(true);
+    }
+  }, [pendingOfflineEarnings]);
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      <WelcomeBack
-        earnings={offlineEarnings}
-        onDismiss={() => setShowWelcome(false)}
-      />
+      {showWelcome && (
+        <WelcomeBack
+          earnings={pendingOfflineEarnings}
+          onDismiss={() => {
+            collectOfflineEarnings();
+            setShowWelcome(false);
+          }}
+        />
+      )}
 
       <Text style={styles.title}>SERVER IDLE</Text>
 
