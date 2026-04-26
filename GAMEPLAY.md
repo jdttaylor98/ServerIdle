@@ -20,6 +20,21 @@ A brand-new player opens the game with:
 
 **Only available action:** Tap the **PROVISION** button (+1 credit per tap).
 
+### Progressive reveal
+
+The game intentionally hides systems you can't yet engage with — they appear as you progress. You won't see staff, large capacity buildings, or higher server tiers until you've earned them by playing. New cards appearing in their respective screens is part of the discovery loop.
+
+| Item | Reveal trigger |
+|---|---|
+| Rack Server | Own 5 Raspberry Pis |
+| Blade Server | Own 1 Rack Server |
+| PDU / AC Unit | Own 1 of the previous tier (Power Strip / Desk Fan) |
+| UPS / Liquid Cooling | Own 1 of the previous tier (PDU / AC Unit) |
+| Generator / Industrial HVAC | Own 1 of the previous tier (UPS / Liquid Cooling) |
+| **STAFF** nav tile | Own 5 servers (first staff role unlockable) |
+| Each staff role | Specific event triggers (resolve a DDoS, etc.) — see Staff section |
+| Cluster section | Buy the Cluster Software upgrade |
+
 ---
 
 ## Screens

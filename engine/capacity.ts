@@ -98,6 +98,24 @@ export function getCapacityBuildingCost(
   return Math.floor(building.baseCost * Math.pow(building.costScaling, owned));
 }
 
+/**
+ * A capacity building is visible if:
+ * - It's the first tier in its resource (always shown), OR
+ * - The player owns at least 1 of the previous tier (progressive reveal)
+ */
+export function isCapacityBuildingVisible(
+  building: CapacityBuilding,
+  owned: Record<string, number>
+): boolean {
+  const sameResource = CAPACITY_BUILDINGS.filter(
+    (b) => b.resource === building.resource
+  );
+  const idx = sameResource.findIndex((b) => b.id === building.id);
+  if (idx <= 0) return true;
+  const prev = sameResource[idx - 1];
+  return (owned[prev.id] ?? 0) >= 1;
+}
+
 export function getTotalCapacity(
   buildings: Record<string, number>,
   resource: CapacityResource

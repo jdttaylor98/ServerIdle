@@ -1,6 +1,6 @@
 import React from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SERVER_TIERS } from '../engine/servers';
+import { SERVER_TIERS, isServerTierVisible } from '../engine/servers';
 import { CLUSTER_TYPES, isClusterUnlocked } from '../engine/clusters';
 import { useGameStore } from '../engine/store';
 import { ServerRow } from './ServerRow';
@@ -14,6 +14,11 @@ interface Props {
 export function ServersScreen({ onClose }: Props) {
   const credits = useGameStore((state) => state.credits);
   const upgrades = useGameStore((state) => state.upgrades);
+  const servers = useGameStore((state) => state.servers);
+
+  const visibleTiers = SERVER_TIERS.filter((t) =>
+    isServerTierVisible(t.id, servers)
+  );
 
   // Always show the cluster section once any cluster type is unlocked
   const anyClusterUnlocked = CLUSTER_TYPES.some((c) =>
@@ -32,7 +37,7 @@ export function ServersScreen({ onClose }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {SERVER_TIERS.map((tier) => (
+        {visibleTiers.map((tier) => (
           <ServerRow key={tier.id} tier={tier} />
         ))}
 

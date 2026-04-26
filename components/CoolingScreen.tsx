@@ -3,6 +3,7 @@ import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import {
   CAPACITY_BUILDINGS,
   getTotalCapacity,
+  isCapacityBuildingVisible,
 } from '../engine/capacity';
 import { getTotalHeatOutput } from '../engine/servers';
 import { useGameStore } from '../engine/store';
@@ -22,7 +23,9 @@ export function CoolingScreen({ onClose }: Props) {
   const used = getTotalHeatOutput(servers);
   const total = getTotalCapacity(capacity, 'cooling');
 
-  const buildings = CAPACITY_BUILDINGS.filter((b) => b.resource === 'cooling');
+  const buildings = CAPACITY_BUILDINGS.filter(
+    (b) => b.resource === 'cooling' && isCapacityBuildingVisible(b, capacity)
+  );
 
   return (
     <SafeAreaView style={styles.safe}>

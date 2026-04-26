@@ -163,3 +163,21 @@ export function getIncidentWeightModifiers(
 export function getTotalStaffCount(staff: Record<string, number>): number {
   return Object.values(staff).reduce((a, b) => a + b, 0);
 }
+
+/** Whether the STAFF nav tile should appear at all (any role currently unlockable). */
+export function isStaffNavVisible(gates: GateState): boolean {
+  return STAFF_ROLES.some((r) => r.isUnlocked(gates));
+}
+
+/**
+ * Returns the roles to display on the Staff screen:
+ * all unlocked roles, plus one "teaser" locked role (the cheapest one still locked).
+ * Hides everything further out so the screen doesn't feel like a menu.
+ */
+export function getVisibleStaffRoles(gates: GateState): StaffRole[] {
+  const unlocked = STAFF_ROLES.filter((r) => r.isUnlocked(gates));
+  const locked = STAFF_ROLES.filter((r) => !r.isUnlocked(gates));
+  // Cheapest locked acts as the teaser (matches natural progression curve)
+  const teaser = [...locked].sort((a, b) => a.hireCost - b.hireCost)[0];
+  return teaser ? [...unlocked, teaser] : unlocked;
+}

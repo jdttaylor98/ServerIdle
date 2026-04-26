@@ -20,6 +20,7 @@ import { ServersScreen } from './components/ServersScreen';
 import { PowerScreen } from './components/PowerScreen';
 import { CoolingScreen } from './components/CoolingScreen';
 import { StaffScreen } from './components/StaffScreen';
+import { isStaffNavVisible } from './engine/staff';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -47,6 +48,7 @@ export default function App() {
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const staff = useGameStore((state) => state.staff);
   const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
+  const getGateState = useGameStore((state) => state.getGateState);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
   const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
@@ -114,6 +116,7 @@ export default function App() {
   const salary = getTotalSalaryFn();
   const netCps = cps - salary;
   const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
+  const showStaffNav = isStaffNavVisible(getGateState());
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
 
@@ -248,16 +251,18 @@ export default function App() {
             hint={`${Math.floor(heatUsed)} / ${Math.floor(coolingCap)} BTU`}
             onPress={() => setScreen('cooling')}
           />
-          <NavTile
-            icon="👥"
-            label="STAFF"
-            hint={
-              totalStaff > 0
-                ? `${totalStaff} hired · ${salary.toFixed(1)} cr/sec payroll`
-                : 'Hire your team'
-            }
-            onPress={() => setScreen('staff')}
-          />
+          {showStaffNav && (
+            <NavTile
+              icon="👥"
+              label="STAFF"
+              hint={
+                totalStaff > 0
+                  ? `${totalStaff} hired · ${salary.toFixed(1)} cr/sec payroll`
+                  : 'Hire your team'
+              }
+              onPress={() => setScreen('staff')}
+            />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, View, Text } from 'react-native';
-import { STAFF_ROLES } from '../engine/staff';
+import { getVisibleStaffRoles } from '../engine/staff';
 import { useGameStore } from '../engine/store';
 import { StaffRow } from './StaffRow';
 import { ScreenHeader } from './ScreenHeader';
@@ -12,6 +12,8 @@ interface Props {
 export function StaffScreen({ onClose }: Props) {
   const credits = useGameStore((state) => state.credits);
   const totalSalary = useGameStore((state) => state.getTotalSalary());
+  const getGateState = useGameStore((state) => state.getGateState);
+  const visibleRoles = getVisibleStaffRoles(getGateState());
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -31,7 +33,7 @@ export function StaffScreen({ onClose }: Props) {
             <Text style={styles.salaryValue}>−{totalSalary.toFixed(1)} cr/sec</Text>
           </View>
         )}
-        {STAFF_ROLES.map((role) => (
+        {visibleRoles.map((role) => (
           <StaffRow key={role.id} role={role} />
         ))}
       </ScrollView>

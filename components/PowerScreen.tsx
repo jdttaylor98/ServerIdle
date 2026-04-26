@@ -3,6 +3,7 @@ import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
 import {
   CAPACITY_BUILDINGS,
   getTotalCapacity,
+  isCapacityBuildingVisible,
 } from '../engine/capacity';
 import { getTotalPowerDraw } from '../engine/servers';
 import { getBonusPowerCapacity } from '../engine/upgrades';
@@ -25,7 +26,9 @@ export function PowerScreen({ onClose }: Props) {
   const total =
     getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
 
-  const buildings = CAPACITY_BUILDINGS.filter((b) => b.resource === 'power');
+  const buildings = CAPACITY_BUILDINGS.filter(
+    (b) => b.resource === 'power' && isCapacityBuildingVisible(b, capacity)
+  );
 
   return (
     <SafeAreaView style={styles.safe}>

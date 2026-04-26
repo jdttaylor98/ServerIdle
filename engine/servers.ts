@@ -42,6 +42,16 @@ export const SERVER_TIERS: ServerTier[] = [
   },
 ];
 
+export function isServerTierVisible(
+  tierId: string,
+  servers: Record<string, number>
+): boolean {
+  if (tierId === 'pi') return true;
+  if (tierId === 'rack') return (servers['pi'] ?? 0) >= 5;
+  if (tierId === 'blade') return (servers['rack'] ?? 0) >= 1;
+  return true;
+}
+
 export function getTotalPowerDraw(servers: Record<string, number>): number {
   return SERVER_TIERS.reduce((total, tier) => {
     return total + tier.powerDraw * (servers[tier.id] ?? 0);
