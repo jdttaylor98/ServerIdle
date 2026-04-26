@@ -141,7 +141,26 @@ A 4-Blade setup outputs `120 cr/sec` → pays back in ~8 minutes.
 
 **Cluster Software** — `$10,000` upgrade, **also requires 25 Raspberry Pis owned**.
 
-This is the first real *gate*: you can't just rush past Pis with money — you have to actually keep Pis around. (After unlocking, Pis become less essential, but the Cluster *tier itself* is **not yet implemented**.)
+This is the first real *gate*: you can't just rush past Pis with money — you have to actually keep Pis around. Buying this upgrade unlocks the **Pi Cluster** tier on the Servers screen.
+
+### Pi Cluster
+
+A new buildable unit that **consumes** 10 Raspberry Pis to form one Cluster:
+
+| Stat | Value |
+|---|---|
+| Build cost | `2,000 cr` + **10 Pis** |
+| Cost scaling | 1.15× per buy |
+| Output | `0.5 × 10 × 1.5 = 7.5 cr/sec` (50% multiplier vs. 10 raw Pis) |
+| Power | `80W` (same as 10 Pis) |
+| Heat | `120 BTU` (same as 10 Pis) |
+| Inherits Pi upgrades | Yes — Containerization + SSD Upgrade also boost cluster output |
+
+**Strategic tradeoffs:**
+- You commit your Pi inventory (selling clusters refunds credits but **does NOT** return the Pis)
+- A cluster is `1.5×` the output of the Pis it consumed — pure win on output
+- Same power/heat as the underlying Pis, so cooling/power decisions are unchanged
+- The cluster tier becomes more efficient than building more Pis once you have the upgrade
 
 ---
 
@@ -189,7 +208,8 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 
 ### Phase 4 — Live Systems
 - **Incidents:** random tap-to-resolve events (DDoS, disk full, memory leak, hacker breach minigame)
-- **Cluster tier** (combine N servers for a multiplier)
+- ~~Cluster tier~~ ✅ shipped (Pi Cluster)
+- **Rack Cluster** (consume 5 Racks for a multiplier — coming with later upgrades)
 - **Auto-provisioner** automation upgrades
 
 ### Phase 5 — Data Center & Cloud
@@ -220,6 +240,13 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 | Blade Server | 5,000 cr | 30 cr/sec | 1,200W | 1,800 BTU |
 
 (All have 1.15× cost scaling per purchase)
+
+### Clusters
+| Type | Build cost | Consumes | Output | Power | Heat |
+|---|---|---|---|---|---|
+| Pi Cluster | 2,000 cr | 10× Pi | 7.5 cr/sec | 80W | 120 BTU |
+
+(Unlocks via Cluster Software upgrade. Inherits source-tier upgrade multipliers. 1.15× cost scaling.)
 
 ### Power buildings
 | Building | Cost | Provides |

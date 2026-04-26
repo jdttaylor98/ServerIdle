@@ -14,6 +14,14 @@ import {
   getEfficiency,
 } from './capacity';
 import {
+  CLUSTER_TYPES,
+  getClusterCost,
+  isClusterUnlocked,
+  getTotalClusterOutput,
+  getTotalClusterPower,
+  getTotalClusterHeat,
+} from './clusters';
+import {
   UPGRADES,
   isUpgradeAvailable,
   getClickCreditBonus,
@@ -40,6 +48,7 @@ const SELL_REFUND_RATIO = 0.5; // refund 50% of the most recent purchase price w
 export interface GameState {
   credits: number;
   servers: Record<string, number>;
+  clusters: Record<string, number>; // cluster type id -> count
   capacity: Record<string, number>; // capacity building id -> count
   upgrades: Record<string, boolean>; // upgrade id -> purchased
   overclockEnabled: boolean;
@@ -62,6 +71,8 @@ export interface GameState {
   tapProvision: () => void;
   buyServer: (tierId: string) => void;
   sellServer: (tierId: string) => void;
+  buildCluster: (clusterId: string) => void;
+  sellCluster: (clusterId: string) => void;
   buyCapacityBuilding: (buildingId: string) => void;
   sellCapacityBuilding: (buildingId: string) => void;
   buyUpgrade: (upgradeId: string) => void;
@@ -75,6 +86,7 @@ export interface GameState {
 interface SaveData {
   credits: number;
   servers: Record<string, number>;
+  clusters: Record<string, number>;
   capacity: Record<string, number>;
   upgrades: Record<string, boolean>;
   overclockEnabled: boolean;
@@ -84,26 +96,33 @@ interface SaveData {
 
 function calcCreditsPerSec(
   servers: Record<string, number>,
+  clusters: Record<string, number>,
   capacity: Record<string, number>,
   upgrades: Record<string, boolean>,
   overclockEnabled: boolean
 ): number {
   // Sum each tier's output WITH its upgrade multiplier applied
-  const baseOutput =
-    BASE_CREDITS_PER_SEC +
-    SERVER_TIERS.reduce((sum, tier) => {
-      const owned = servers[tier.id] ?? 0;
-      const tierMult = getServerOutputMultiplier(tier.id, upgrades);
-      return sum + getServerOutput(tier, owned) * tierMult;
-    }, 0);
+  const serverOutput = SERVER_TIERS.reduce((sum, tier) => {
+    const owned = servers[tier.id] ?? 0;
+    const tierMult = getServerOutputMultiplier(tier.id, upgrades);
+    return sum + getServerOutput(tier, owned) * tierMult;
+  }, 0);
 
+  const clusterOutput = getTotalClusterOutput(clusters, upgrades, (tierId) =>
+    getServerOutputMultiplier(tierId, upgrades)
+  );
+
+  const baseOutput = BASE_CREDITS_PER_SEC + serverOutput + clusterOutput;
   const overclockMult = overclockEnabled ? OVERCLOCK_MULTIPLIER : 1;
+
+  const totalPower = getTotalPowerDraw(servers) + getTotalClusterPower(clusters);
+  const totalHeat = getTotalHeatOutput(servers) + getTotalClusterHeat(clusters);
 
   const powerCap =
     getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
-  const powerEff = getEfficiency(getTotalPowerDraw(servers), powerCap);
+  const powerEff = getEfficiency(totalPower, powerCap);
   const coolingEff = getEfficiency(
-    getTotalHeatOutput(servers),
+    totalHeat,
     getTotalCapacity(capacity, 'cooling')
   );
   const efficiency = Math.min(powerEff, coolingEff);
@@ -114,6 +133,7 @@ function calcCreditsPerSec(
 export const useGameStore = create<GameState>((set, get) => ({
   credits: 0,
   servers: {},
+  clusters: {},
   capacity: {},
   upgrades: {},
   overclockEnabled: false,
@@ -124,31 +144,36 @@ export const useGameStore = create<GameState>((set, get) => ({
   hydrated: false,
 
   getCreditsPerSec: () => {
-    const { servers, capacity, upgrades, overclockEnabled } = get();
-    return calcCreditsPerSec(servers, capacity, upgrades, overclockEnabled);
+    const { servers, clusters, capacity, upgrades, overclockEnabled } = get();
+    return calcCreditsPerSec(servers, clusters, capacity, upgrades, overclockEnabled);
   },
 
   getPowerStats: () => {
-    const { servers, capacity, upgrades } = get();
-    const used = getTotalPowerDraw(servers);
-    const cap = getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
+    const { servers, clusters, capacity, upgrades } = get();
+    const used = getTotalPowerDraw(servers) + getTotalClusterPower(clusters);
+    const cap =
+      getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
     return { used, capacity: cap, efficiency: getEfficiency(used, cap) };
   },
 
   getCoolingStats: () => {
-    const { servers, capacity } = get();
-    const used = getTotalHeatOutput(servers);
+    const { servers, clusters, capacity } = get();
+    const used = getTotalHeatOutput(servers) + getTotalClusterHeat(clusters);
     const cap = getTotalCapacity(capacity, 'cooling');
     return { used, capacity: cap, efficiency: getEfficiency(used, cap) };
   },
 
   getEfficiencyMultiplier: () => {
-    const { servers, capacity, upgrades } = get();
+    const { servers, clusters, capacity, upgrades } = get();
     const powerCap =
       getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
-    const powerEff = getEfficiency(getTotalPowerDraw(servers), powerCap);
+    const totalPower =
+      getTotalPowerDraw(servers) + getTotalClusterPower(clusters);
+    const totalHeat =
+      getTotalHeatOutput(servers) + getTotalClusterHeat(clusters);
+    const powerEff = getEfficiency(totalPower, powerCap);
     const coolingEff = getEfficiency(
-      getTotalHeatOutput(servers),
+      totalHeat,
       getTotalCapacity(capacity, 'cooling')
     );
     return Math.min(powerEff, coolingEff);
@@ -158,12 +183,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     const {
       credits,
       servers,
+      clusters,
       capacity,
       upgrades,
       overclockEnabled,
       cronTickAccumulator,
     } = get();
-    const cps = calcCreditsPerSec(servers, capacity, upgrades, overclockEnabled);
+    const cps = calcCreditsPerSec(
+      servers,
+      clusters,
+      capacity,
+      upgrades,
+      overclockEnabled
+    );
 
     // Cron Jobs: auto-tap every 5 seconds if purchased
     let cronAccum = cronTickAccumulator + 1;
@@ -245,6 +277,44 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  buildCluster: (clusterId) => {
+    const { credits, servers, clusters, upgrades } = get();
+    const type = CLUSTER_TYPES.find((c) => c.id === clusterId);
+    if (!type) return;
+    if (!isClusterUnlocked(type, upgrades)) return;
+
+    const owned = clusters[clusterId] ?? 0;
+    const cost = getClusterCost(type, owned);
+    if (credits < cost) return;
+
+    const sourceOwned = servers[type.sourceTierId] ?? 0;
+    if (sourceOwned < type.sourceCount) return;
+
+    set({
+      credits: credits - cost,
+      servers: {
+        ...servers,
+        [type.sourceTierId]: sourceOwned - type.sourceCount,
+      },
+      clusters: { ...clusters, [clusterId]: owned + 1 },
+    });
+  },
+
+  sellCluster: (clusterId) => {
+    const { credits, clusters } = get();
+    const type = CLUSTER_TYPES.find((c) => c.id === clusterId);
+    if (!type) return;
+    const owned = clusters[clusterId] ?? 0;
+    if (owned <= 0) return;
+
+    // Refund half of what the most recent cluster cost (consumed servers don't return)
+    const refund = Math.floor(getClusterCost(type, owned - 1) * SELL_REFUND_RATIO);
+    set({
+      credits: credits + refund,
+      clusters: { ...clusters, [clusterId]: owned - 1 },
+    });
+  },
+
   buyCapacityBuilding: (buildingId) => {
     const { credits, capacity } = get();
     const building = CAPACITY_BUILDINGS.find((b) => b.id === buildingId);
@@ -312,6 +382,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const {
       credits,
       servers,
+      clusters,
       capacity,
       upgrades,
       overclockEnabled,
@@ -321,6 +392,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const data: SaveData = {
       credits,
       servers,
+      clusters,
       capacity,
       upgrades,
       overclockEnabled,
@@ -347,8 +419,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     const savedUpgrades = data.upgrades ?? {};
+    const savedClusters = data.clusters ?? {};
     const cps = calcCreditsPerSec(
       data.servers ?? {},
+      savedClusters,
       data.capacity ?? {},
       savedUpgrades,
       data.overclockEnabled ?? false
@@ -359,6 +433,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       credits: data.credits ?? 0,
       servers: data.servers ?? {},
+      clusters: savedClusters,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       overclockEnabled: data.overclockEnabled ?? false,
@@ -370,6 +445,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const refreshed: SaveData = {
       credits: data.credits ?? 0,
       servers: data.servers ?? {},
+      clusters: savedClusters,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       overclockEnabled: data.overclockEnabled ?? false,
