@@ -19,6 +19,7 @@ import { UpgradesScreen } from './components/UpgradesScreen';
 import { ServersScreen } from './components/ServersScreen';
 import { PowerScreen } from './components/PowerScreen';
 import { CoolingScreen } from './components/CoolingScreen';
+import { StaffScreen } from './components/StaffScreen';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -32,7 +33,7 @@ import {
 } from './engine/servers';
 import { getTotalCapacity } from './engine/capacity';
 
-type Screen = 'main' | 'upgrades' | 'servers' | 'power' | 'cooling';
+type Screen = 'main' | 'upgrades' | 'servers' | 'power' | 'cooling' | 'staff';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -44,6 +45,8 @@ export default function App() {
   const tapProvision = useGameStore((state) => state.tapProvision);
   const addCredits = useGameStore((state) => state.addCredits);
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
+  const staff = useGameStore((state) => state.staff);
+  const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
   const pendingOfflineEarnings = useGameStore((state) => state.pendingOfflineEarnings);
@@ -97,9 +100,20 @@ export default function App() {
       </>
     );
   }
+  if (screen === 'staff') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <StaffScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
 
   // Main dashboard
   const cps = getCreditsPerSec();
+  const salary = getTotalSalaryFn();
+  const netCps = cps - salary;
+  const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
 
@@ -154,6 +168,19 @@ export default function App() {
           <Text style={[styles.perSec, overclockEnabled && styles.perSecBoosted]}>
             {cps.toFixed(1)} / sec {overclockEnabled ? '⚡' : ''}
           </Text>
+          {salary > 0 && (
+            <View style={styles.netRow}>
+              <Text style={styles.salaryLine}>− {salary.toFixed(1)} payroll</Text>
+              <Text
+                style={[
+                  styles.netLine,
+                  netCps < 0 && styles.netLineNegative,
+                ]}
+              >
+                = {netCps.toFixed(1)} net
+              </Text>
+            </View>
+          )}
           {vendorDiscountAvailable && (
             <Text style={styles.discountBadge}>💰 50% OFF NEXT SERVER</Text>
           )}
@@ -220,6 +247,16 @@ export default function App() {
             label="COOLING"
             hint={`${Math.floor(heatUsed)} / ${Math.floor(coolingCap)} BTU`}
             onPress={() => setScreen('cooling')}
+          />
+          <NavTile
+            icon="👥"
+            label="STAFF"
+            hint={
+              totalStaff > 0
+                ? `${totalStaff} hired · ${salary.toFixed(1)} cr/sec payroll`
+                : 'Hire your team'
+            }
+            onPress={() => setScreen('staff')}
           />
         </View>
       </ScrollView>
@@ -295,6 +332,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   perSecBoosted: {
+    color: '#ff3355',
+  },
+  netRow: {
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  salaryLine: {
+    color: '#ff7755',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+  },
+  netLine: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 1,
+    fontVariant: ['tabular-nums'],
+  },
+  netLineNegative: {
     color: '#ff3355',
   },
   discountBadge: {

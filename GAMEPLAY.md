@@ -29,9 +29,10 @@ The game is split across a main dashboard and four drill-down screens, all acces
 | Screen | Purpose |
 |---|---|
 | **Main** | Credits, cps, mini Power/Cooling meters, PROVISION, Overclock toggle, nav tiles |
-| **Servers** | Buy/sell server tiers (Pi, Rack, Blade) |
+| **Servers** | Buy/sell server tiers (Pi, Rack, Blade) + Clusters |
 | **Power** | Buy/sell power capacity buildings + full power meter |
 | **Cooling** | Buy/sell cooling capacity buildings + full cooling meter |
+| **Staff** | Hire/fire IT roles with passive effects + ongoing salaries |
 | **Upgrades** | Tree-view of unlockable upgrades organized by era |
 
 Mini meters on the dashboard always show real-time power/cooling usage so you can spot overload at a glance.
@@ -109,6 +110,29 @@ So your first Rack costs effectively `$2,250` (Rack + PDU + AC Unit). Pays back 
 | Blade Chassis | 50,000 | Blade output ×1.25 |
 
 ---
+
+## Staff
+
+Staff are a separate unit category from servers. Each role has a unique passive effect and an ongoing **salary** that drains credits every second. Net cps shown on the main dashboard is `output − payroll`.
+
+Most roles are **gated behind events** — you have to play through the relevant content before they become hireable.
+
+| Role | Hire cost | Salary | Effect | Unlock |
+|---|---|---|---|---|
+| 🛠 DevOps Engineer | 5,000 | 0.5/sec | +5% server/cluster output per hire | Own 5 servers |
+| 🔒 Security Engineer | 10,000 | 1/sec | DDoS trigger −20% per hire (90% cap) | Resolve a DDoS |
+| 🖥 SysAdmin | 8,000 | 0.8/sec | Disk Full incidents stop occurring | Resolve a Disk Full |
+| 📈 SRE | 25,000 | 2.5/sec | Overclock failure chance −15% per hire | Buy Hot Swap upgrade |
+| 💼 Sales Engineer | 15,000 | 1.5/sec | Vendor Offer rate +25% per hire | Accept a Vendor Offer |
+| 👔 Engineering Manager | 100,000 | 10/sec | All other staff effects ×1.25 per hire | Hire 10 total staff |
+
+**Mechanics:**
+- Hire cost scales 1.20× per same-role hire (steeper than servers)
+- Salary deducts every tick (1 second). Credits floor at 0 — you won't go negative
+- Salary applies during offline progression too (offline net cps = max(0, output − salary) × 0.5)
+- Fire any role for 50% refund of last hire price; salary stops immediately
+- Hard caps where they make sense (Security can't drop DDoS to 0, just to 10%)
+- Engineering Manager **boosts other staff effects multiplicatively** (1.25× per Manager hired)
 
 ## Live incidents
 
@@ -238,6 +262,8 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 - ~~Incidents (DDoS, Disk Full, Vendor Offer)~~ ✅ shipped
 - **More incidents:** memory leak, hacker breach minigame
 - ~~Cluster tier~~ ✅ shipped (Pi Cluster, Rack Cluster)
+- ~~Staff system (DevOps, Security, SysAdmin, SRE, Sales, Manager)~~ ✅ shipped
+- **Data Scientist** role (needs Research Points from Phase 5)
 - **Auto-provisioner** automation upgrades
 
 ### Phase 5 — Data Center & Cloud

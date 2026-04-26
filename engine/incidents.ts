@@ -50,8 +50,22 @@ export const INCIDENT_TRIGGER_CHANCE_PER_SEC = 0.01; // ~1% per tick
 
 const ALL_TYPES: IncidentType[] = ['ddos', 'disk_full', 'vendor_offer'];
 
-export function pickRandomIncident(): IncidentType {
-  return ALL_TYPES[Math.floor(Math.random() * ALL_TYPES.length)];
+export function pickRandomIncident(
+  weights?: Partial<Record<IncidentType, number>>
+): IncidentType | null {
+  const w: Record<IncidentType, number> = {
+    ddos: weights?.ddos ?? 1,
+    disk_full: weights?.disk_full ?? 1,
+    vendor_offer: weights?.vendor_offer ?? 1,
+  };
+  const total = ALL_TYPES.reduce((s, t) => s + w[t], 0);
+  if (total <= 0) return null; // fully blocked by staff
+  let roll = Math.random() * total;
+  for (const t of ALL_TYPES) {
+    roll -= w[t];
+    if (roll <= 0) return t;
+  }
+  return ALL_TYPES[0];
 }
 
 export function createIncident(type: IncidentType): ActiveIncident {

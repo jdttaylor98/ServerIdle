@@ -30,6 +30,16 @@ import {
   getIncidentMultiplier,
 } from './incidents';
 import {
+  STAFF_ROLES,
+  GateState,
+  getHireCost,
+  getStaffOutputMultiplier,
+  getTotalSalary,
+  getOverclockFailureMultiplier,
+  getIncidentWeightModifiers,
+  getTotalStaffCount,
+} from './staff';
+import {
   UPGRADES,
   isUpgradeAvailable,
   getClickCreditBonus,
@@ -52,6 +62,7 @@ const OVERCLOCK_FAILURE_CHANCE = 0.005; // 0.5% per tick
 const CRON_JOBS_INTERVAL_SEC = 5; // auto-tap every N seconds when Cron Jobs purchased
 
 const SELL_REFUND_RATIO = 0.5; // refund 50% of the most recent purchase price when selling
+const STAFF_REFUND_RATIO = 0.5; // 50% refund when firing staff
 
 export interface GameState {
   credits: number;
@@ -59,10 +70,16 @@ export interface GameState {
   clusters: Record<string, number>; // cluster type id -> count
   capacity: Record<string, number>; // capacity building id -> count
   upgrades: Record<string, boolean>; // upgrade id -> purchased
+  staff: Record<string, number>; // role id -> count hired
+  totalStaffEverHired: number; // cumulative count for "hire 10 staff" gate
   overclockEnabled: boolean;
   cronTickAccumulator: number; // seconds accumulated toward next auto-tap
   activeIncident: ActiveIncident | null;
   vendorDiscountAvailable: boolean; // one-shot 50% off next server purchase
+  // Event flags for staff unlock gates
+  ddosResolvedCount: number;
+  diskFullResolvedCount: number;
+  vendorOfferAcceptedCount: number;
   lastIncidentResolution: {
     type: ActiveIncident['type'];
     success: boolean;
@@ -77,6 +94,9 @@ export interface GameState {
 
   // Derived getters
   getCreditsPerSec: () => number;
+  getNetCreditsPerSec: () => number;
+  getTotalSalary: () => number;
+  getGateState: () => GateState;
   getPowerStats: () => { used: number; capacity: number; efficiency: number };
   getCoolingStats: () => { used: number; capacity: number; efficiency: number };
   getEfficiencyMultiplier: () => number;
@@ -92,6 +112,8 @@ export interface GameState {
   buyCapacityBuilding: (buildingId: string) => void;
   sellCapacityBuilding: (buildingId: string) => void;
   buyUpgrade: (upgradeId: string) => void;
+  hireStaff: (roleId: string) => void;
+  fireStaff: (roleId: string) => void;
   toggleOverclock: () => void;
   clearFailureNotice: () => void;
   resolveIncident: () => void;
@@ -109,8 +131,13 @@ interface SaveData {
   clusters: Record<string, number>;
   capacity: Record<string, number>;
   upgrades: Record<string, boolean>;
+  staff: Record<string, number>;
+  totalStaffEverHired: number;
   overclockEnabled: boolean;
   vendorDiscountAvailable: boolean;
+  ddosResolvedCount: number;
+  diskFullResolvedCount: number;
+  vendorOfferAcceptedCount: number;
   savedAt: number;
   pendingOfflineEarnings: number;
 }
@@ -120,6 +147,7 @@ function calcCreditsPerSec(
   clusters: Record<string, number>,
   capacity: Record<string, number>,
   upgrades: Record<string, boolean>,
+  staff: Record<string, number>,
   overclockEnabled: boolean,
   activeIncident: ActiveIncident | null
 ): number {
@@ -134,7 +162,9 @@ function calcCreditsPerSec(
     getServerOutputMultiplier(tierId, upgrades)
   );
 
-  const baseOutput = BASE_CREDITS_PER_SEC + serverOutput + clusterOutput;
+  const staffMult = getStaffOutputMultiplier(staff);
+  const baseOutput =
+    BASE_CREDITS_PER_SEC + (serverOutput + clusterOutput) * staffMult;
   const overclockMult = overclockEnabled ? OVERCLOCK_MULTIPLIER : 1;
 
   const totalPower = getTotalPowerDraw(servers) + getTotalClusterPower(clusters);
@@ -159,10 +189,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   clusters: {},
   capacity: {},
   upgrades: {},
+  staff: {},
+  totalStaffEverHired: 0,
   overclockEnabled: false,
   cronTickAccumulator: 0,
   activeIncident: null,
   vendorDiscountAvailable: false,
+  ddosResolvedCount: 0,
+  diskFullResolvedCount: 0,
+  vendorOfferAcceptedCount: 0,
   lastIncidentResolution: null,
   lastFailure: null,
   lastSavedAt: Date.now(),
@@ -170,15 +205,45 @@ export const useGameStore = create<GameState>((set, get) => ({
   hydrated: false,
 
   getCreditsPerSec: () => {
-    const { servers, clusters, capacity, upgrades, overclockEnabled, activeIncident } = get();
+    const { servers, clusters, capacity, upgrades, staff, overclockEnabled, activeIncident } = get();
     return calcCreditsPerSec(
       servers,
       clusters,
       capacity,
       upgrades,
+      staff,
       overclockEnabled,
       activeIncident
     );
+  },
+
+  getNetCreditsPerSec: () => {
+    const cps = get().getCreditsPerSec();
+    const salary = getTotalSalary(get().staff);
+    return cps - salary;
+  },
+
+  getTotalSalary: () => getTotalSalary(get().staff),
+
+  getGateState: () => {
+    const {
+      servers,
+      clusters,
+      upgrades,
+      ddosResolvedCount,
+      diskFullResolvedCount,
+      vendorOfferAcceptedCount,
+      totalStaffEverHired,
+    } = get();
+    return {
+      totalServers: Object.values(servers).reduce((a, b) => a + b, 0),
+      totalClusters: Object.values(clusters).reduce((a, b) => a + b, 0),
+      ddosResolvedCount,
+      diskFullResolvedCount,
+      vendorOfferAcceptedCount,
+      hotSwapOwned: !!upgrades['hot_swap'],
+      totalStaffHired: totalStaffEverHired,
+    };
   },
 
   getPowerStats: () => {
@@ -219,6 +284,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       clusters,
       capacity,
       upgrades,
+      staff,
       overclockEnabled,
       cronTickAccumulator,
       activeIncident,
@@ -230,7 +296,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     let incidentResolution: GameState['lastIncidentResolution'] = null;
     if (nextIncident && Date.now() >= nextIncident.expiresAt) {
       // Timed out
-      const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, false, null);
+      const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, false, null);
       if (nextIncident.type === 'ddos') {
         incidentPenalty = baseCps * INCIDENT_CONFIG.ddos.timeoutPenaltySecondsOfCps;
         incidentResolution = {
@@ -257,7 +323,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         totalServers + totalClusters > 0 &&
         Math.random() < INCIDENT_TRIGGER_CHANCE_PER_SEC
       ) {
-        nextIncident = createIncident(pickRandomIncident());
+        const weights = getIncidentWeightModifiers(staff);
+        const chosen = pickRandomIncident(weights);
+        if (chosen) nextIncident = createIncident(chosen);
       }
     }
 
@@ -266,9 +334,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       clusters,
       capacity,
       upgrades,
+      staff,
       overclockEnabled,
       nextIncident
     );
+
+    // Salary drains every tick (1 sec per tick)
+    const salary = getTotalSalary(staff);
 
     // Cron Jobs: auto-tap every 5 seconds if purchased
     let cronAccum = cronTickAccumulator + 1;
@@ -283,7 +355,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     if (overclockEnabled) {
       const totalServers = Object.values(servers).reduce((a, b) => a + b, 0);
-      if (totalServers > 0 && Math.random() < OVERCLOCK_FAILURE_CHANCE) {
+      const failureChance =
+        OVERCLOCK_FAILURE_CHANCE * getOverclockFailureMultiplier(staff);
+      if (totalServers > 0 && Math.random() < failureChance) {
         const lost = getOverclockFailureLost(upgrades);
         const ownedTiers = SERVER_TIERS.filter(
           (t) => (servers[t.id] ?? 0) > 0
@@ -291,7 +365,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const victim =
           ownedTiers[Math.floor(Math.random() * ownedTiers.length)];
         set({
-          credits: Math.max(0, credits + cps + cronCredits - incidentPenalty),
+          credits: Math.max(0, credits + cps + cronCredits - salary - incidentPenalty),
           servers: lost
             ? { ...servers, [victim.id]: servers[victim.id] - lost }
             : servers,
@@ -306,7 +380,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     set({
-      credits: Math.max(0, credits + cps + cronCredits - incidentPenalty),
+      credits: Math.max(0, credits + cps + cronCredits - salary - incidentPenalty),
       cronTickAccumulator: cronAccum,
       activeIncident: nextIncident,
       lastIncidentResolution: incidentResolution,
@@ -439,6 +513,37 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  hireStaff: (roleId) => {
+    const { credits, staff, totalStaffEverHired } = get();
+    const role = STAFF_ROLES.find((r) => r.id === roleId);
+    if (!role) return;
+    const owned = staff[roleId] ?? 0;
+    const cost = getHireCost(role, owned);
+    if (credits < cost) return;
+    // Verify gate is open
+    const gates = get().getGateState();
+    if (!role.isUnlocked(gates)) return;
+
+    set({
+      credits: credits - cost,
+      staff: { ...staff, [roleId]: owned + 1 },
+      totalStaffEverHired: totalStaffEverHired + 1,
+    });
+  },
+
+  fireStaff: (roleId) => {
+    const { credits, staff } = get();
+    const role = STAFF_ROLES.find((r) => r.id === roleId);
+    if (!role) return;
+    const owned = staff[roleId] ?? 0;
+    if (owned <= 0) return;
+    const refund = Math.floor(getHireCost(role, owned - 1) * STAFF_REFUND_RATIO);
+    set({
+      credits: credits + refund,
+      staff: { ...staff, [roleId]: owned - 1 },
+    });
+  },
+
   toggleOverclock: () => {
     set((state) => ({ overclockEnabled: !state.overclockEnabled }));
   },
@@ -450,17 +555,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   // ─── Incident actions ───
   resolveIncident: () => {
     // Generic single-tap resolve (used by Disk Full)
-    const { credits, activeIncident, servers, clusters, capacity, upgrades } = get();
+    const { credits, activeIncident, servers, clusters, capacity, upgrades, staff, diskFullResolvedCount } = get();
     if (!activeIncident) return;
     if (activeIncident.type === 'ddos' || activeIncident.type === 'vendor_offer') return;
 
-    const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, false, null);
+    const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, false, null);
     const reward =
       baseCps * INCIDENT_CONFIG[activeIncident.type].rewardSecondsOfCps;
 
     set({
       credits: credits + reward,
       activeIncident: null,
+      diskFullResolvedCount:
+        activeIncident.type === 'disk_full'
+          ? diskFullResolvedCount + 1
+          : diskFullResolvedCount,
       lastIncidentResolution: {
         type: activeIncident.type,
         success: true,
@@ -471,7 +580,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapDdosMitigate: () => {
-    const { credits, activeIncident, servers, clusters, capacity, upgrades } = get();
+    const { credits, activeIncident, servers, clusters, capacity, upgrades, staff, ddosResolvedCount } = get();
     if (!activeIncident || activeIncident.type !== 'ddos') return;
 
     const remaining = activeIncident.tapsRemaining - 1;
@@ -481,11 +590,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // Mitigation complete
-    const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, false, null);
+    const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, false, null);
     const reward = baseCps * INCIDENT_CONFIG.ddos.rewardSecondsOfCps;
     set({
       credits: credits + reward,
       activeIncident: null,
+      ddosResolvedCount: ddosResolvedCount + 1,
       lastIncidentResolution: {
         type: 'ddos',
         success: true,
@@ -496,12 +606,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   acceptVendorOffer: () => {
-    const { activeIncident } = get();
+    const { activeIncident, vendorOfferAcceptedCount } = get();
     if (!activeIncident || activeIncident.type !== 'vendor_offer') return;
 
     set({
       activeIncident: null,
       vendorDiscountAvailable: true,
+      vendorOfferAcceptedCount: vendorOfferAcceptedCount + 1,
       lastIncidentResolution: {
         type: 'vendor_offer',
         success: true,
@@ -532,8 +643,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       clusters,
       capacity,
       upgrades,
+      staff,
+      totalStaffEverHired,
       overclockEnabled,
       vendorDiscountAvailable,
+      ddosResolvedCount,
+      diskFullResolvedCount,
+      vendorOfferAcceptedCount,
       pendingOfflineEarnings,
     } = get();
     const now = Date.now();
@@ -543,8 +659,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       clusters,
       capacity,
       upgrades,
+      staff,
+      totalStaffEverHired,
       overclockEnabled,
       vendorDiscountAvailable,
+      ddosResolvedCount,
+      diskFullResolvedCount,
+      vendorOfferAcceptedCount,
       savedAt: now,
       pendingOfflineEarnings,
     };
@@ -569,16 +690,25 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const savedUpgrades = data.upgrades ?? {};
     const savedClusters = data.clusters ?? {};
+    const savedStaff = data.staff ?? {};
     const savedVendorDiscount = data.vendorDiscountAvailable ?? false;
-    const cps = calcCreditsPerSec(
+    const savedDdos = data.ddosResolvedCount ?? 0;
+    const savedDisk = data.diskFullResolvedCount ?? 0;
+    const savedVendor = data.vendorOfferAcceptedCount ?? 0;
+    const savedTotalHired = data.totalStaffEverHired ?? 0;
+
+    const grossCps = calcCreditsPerSec(
       data.servers ?? {},
       savedClusters,
       data.capacity ?? {},
       savedUpgrades,
+      savedStaff,
       data.overclockEnabled ?? false,
       null
     );
-    const newOffline = elapsedSec * cps * OFFLINE_EFFICIENCY;
+    const salary = getTotalSalary(savedStaff);
+    const netCps = Math.max(0, grossCps - salary); // can't go negative offline
+    const newOffline = elapsedSec * netCps * OFFLINE_EFFICIENCY;
     const totalPending = (data.pendingOfflineEarnings || 0) + newOffline;
 
     set({
@@ -587,9 +717,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       clusters: savedClusters,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
+      staff: savedStaff,
+      totalStaffEverHired: savedTotalHired,
       overclockEnabled: data.overclockEnabled ?? false,
       vendorDiscountAvailable: savedVendorDiscount,
-      activeIncident: null, // don't carry an incident across loads
+      ddosResolvedCount: savedDdos,
+      diskFullResolvedCount: savedDisk,
+      vendorOfferAcceptedCount: savedVendor,
+      activeIncident: null,
       pendingOfflineEarnings: totalPending,
       lastSavedAt: now,
       hydrated: true,
@@ -601,8 +736,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       clusters: savedClusters,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
+      staff: savedStaff,
+      totalStaffEverHired: savedTotalHired,
       overclockEnabled: data.overclockEnabled ?? false,
       vendorDiscountAvailable: savedVendorDiscount,
+      ddosResolvedCount: savedDdos,
+      diskFullResolvedCount: savedDisk,
+      vendorOfferAcceptedCount: savedVendor,
       savedAt: now,
       pendingOfflineEarnings: totalPending,
     };
