@@ -158,6 +158,10 @@ Once you own at least one server (or cluster), random incidents fire roughly **1
 | 🛑 **DDoS Attack** | 0.5× output globally (30s timer) | Tap **MITIGATE** 3 times | Resolve: +30s of cps · Timeout: −60s of cps |
 | 💾 **Disk Full** | 0.5× output globally (45s timer) | Tap **CLEAR DISK** once | Resolve: +15s of cps · Timeout: just expires |
 | 💰 **Vendor Offer** | No effect (60s timer) | Tap **ACCEPT 50% OFF** | Banks a 50% discount on your next server purchase |
+| 🧠 **Memory Leak** | Output decays from 1.0× → 0.5× over 30s, floors at 0.25× (60s timer) | Tap **RESTART SERVICE** | Resolve: +20s of cps · Timeout: just expires |
+| 🚨 **Hacker Breach** | 0.7× output (12s timer) — **minigame** | Tap 4 letter buttons in the displayed order | Resolve: +90s of cps · Timeout: −5% of total credits |
+
+**Hacker Breach minigame:** the banner shows a 4-letter sequence and 4 randomly-positioned letter buttons. Tap the buttons in the sequence order. A wrong tap resets your progress to step 0. Security Engineers reduce hacker breach trigger rate (same protection as for DDoS).
 
 A banked vendor discount appears as `💰 50% OFF NEXT SERVER` under your cps display until you use it.
 
@@ -273,13 +277,11 @@ If you close *without* collecting, the pending amount sticks around — reopenin
 
 The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to come:
 
-### Phase 4 — Live Systems
-- ~~Incidents (DDoS, Disk Full, Vendor Offer)~~ ✅ shipped
-- **More incidents:** memory leak, hacker breach minigame
+### Phase 4 — Live Systems ✅ COMPLETE
+- ~~Incidents (DDoS, Disk Full, Vendor Offer, Memory Leak, Hacker Breach)~~ ✅ shipped
 - ~~Cluster tier~~ ✅ shipped (Pi Cluster, Rack Cluster)
 - ~~Staff system (DevOps, Security, SysAdmin, SRE, Sales, Manager)~~ ✅ shipped
-- **Data Scientist** role (needs Research Points from Phase 5)
-- **Auto-provisioner** automation upgrades
+- **Data Scientist** role and **Auto-provisioner upgrades** deferred to after Phase 5
 
 ### Phase 5 — Data Center & Cloud
 - **Data Center** tier with real-time build timers (1-10 minute waits, idle-friendly)

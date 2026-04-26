@@ -118,6 +118,7 @@ export interface GameState {
   clearFailureNotice: () => void;
   resolveIncident: () => void;
   tapDdosMitigate: () => void;
+  tapHackerSequence: (letter: string) => void;
   acceptVendorOffer: () => void;
   clearIncidentResolution: () => void;
   collectOfflineEarnings: () => Promise<void>;
@@ -305,8 +306,17 @@ export const useGameStore = create<GameState>((set, get) => ({
           rewardCredits: 0,
           penaltyCredits: incidentPenalty,
         };
+      } else if (nextIncident.type === 'hacker_breach') {
+        // Lose 5% of total credits on missed hack
+        incidentPenalty = credits * INCIDENT_CONFIG.hacker_breach.timeoutCreditPercent;
+        incidentResolution = {
+          type: 'hacker_breach',
+          success: false,
+          rewardCredits: 0,
+          penaltyCredits: incidentPenalty,
+        };
       } else {
-        // disk_full, vendor_offer just expire silently
+        // disk_full, vendor_offer, memory_leak just expire silently
         incidentResolution = {
           type: nextIncident.type,
           success: false,
@@ -554,14 +564,18 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // ─── Incident actions ───
   resolveIncident: () => {
-    // Generic single-tap resolve (used by Disk Full)
+    // Generic single-tap resolve (used by Disk Full and Memory Leak)
     const { credits, activeIncident, servers, clusters, capacity, upgrades, staff, diskFullResolvedCount } = get();
     if (!activeIncident) return;
-    if (activeIncident.type === 'ddos' || activeIncident.type === 'vendor_offer') return;
+    if (
+      activeIncident.type !== 'disk_full' &&
+      activeIncident.type !== 'memory_leak'
+    )
+      return;
 
     const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, false, null);
-    const reward =
-      baseCps * INCIDENT_CONFIG[activeIncident.type].rewardSecondsOfCps;
+    const config = INCIDENT_CONFIG[activeIncident.type];
+    const reward = baseCps * config.rewardSecondsOfCps;
 
     set({
       credits: credits + reward,
@@ -603,6 +617,36 @@ export const useGameStore = create<GameState>((set, get) => ({
         penaltyCredits: 0,
       },
     });
+  },
+
+  tapHackerSequence: (letter: string) => {
+    const { credits, activeIncident, servers, clusters, capacity, upgrades, staff } = get();
+    if (!activeIncident || activeIncident.type !== 'hacker_breach') return;
+
+    const expectedLetter = activeIncident.sequence[activeIncident.currentStep];
+    if (letter === expectedLetter) {
+      const nextStep = activeIncident.currentStep + 1;
+      if (nextStep >= activeIncident.sequence.length) {
+        // Sequence complete — patched the breach
+        const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, false, null);
+        const reward = baseCps * INCIDENT_CONFIG.hacker_breach.rewardSecondsOfCps;
+        set({
+          credits: credits + reward,
+          activeIncident: null,
+          lastIncidentResolution: {
+            type: 'hacker_breach',
+            success: true,
+            rewardCredits: reward,
+            penaltyCredits: 0,
+          },
+        });
+      } else {
+        set({ activeIncident: { ...activeIncident, currentStep: nextStep } });
+      }
+    } else {
+      // Wrong letter — reset progress to step 0
+      set({ activeIncident: { ...activeIncident, currentStep: 0 } });
+    }
   },
 
   acceptVendorOffer: () => {

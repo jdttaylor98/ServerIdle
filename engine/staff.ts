@@ -139,14 +139,20 @@ export function getOverclockFailureMultiplier(
 /** Per-incident-type weight modifiers used when picking a random incident. */
 export function getIncidentWeightModifiers(
   staff: Record<string, number>
-): { ddos: number; disk_full: number; vendor_offer: number } {
+): {
+  ddos: number;
+  disk_full: number;
+  vendor_offer: number;
+  memory_leak: number;
+  hacker_breach: number;
+} {
   const m = getManagerBoost(staff);
 
   const securityReduction = Math.min(
     0.9,
     0.20 * getCount(staff, 'security_engineer') * m
   );
-  const ddos = 1 - securityReduction;
+  const attackWeight = 1 - securityReduction;
 
   const diskFull = getCount(staff, 'sysadmin') >= 1 ? 0 : 1;
 
@@ -154,9 +160,11 @@ export function getIncidentWeightModifiers(
   const vendorOffer = 1 + salesBoost;
 
   return {
-    ddos,
+    ddos: attackWeight,
     disk_full: diskFull,
     vendor_offer: vendorOffer,
+    memory_leak: 1, // not affected by staff (yet)
+    hacker_breach: attackWeight, // Security blocks hacker attempts the same way
   };
 }
 
