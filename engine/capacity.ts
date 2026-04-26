@@ -55,7 +55,7 @@ export const CAPACITY_BUILDINGS: CapacityBuilding[] = [
     description: 'It\'s something.',
     resource: 'cooling',
     baseCost: 50,
-    capacity: 150,
+    capacity: 75,
     costScaling: 1.15,
   },
   {
@@ -64,7 +64,7 @@ export const CAPACITY_BUILDINGS: CapacityBuilding[] = [
     description: 'Window-mounted. Professional enough.',
     resource: 'cooling',
     baseCost: 1000,
-    capacity: 1500,
+    capacity: 750,
     costScaling: 1.15,
   },
   {
@@ -73,7 +73,7 @@ export const CAPACITY_BUILDINGS: CapacityBuilding[] = [
     description: 'Don\'t spring a leak.',
     resource: 'cooling',
     baseCost: 20000,
-    capacity: 15000,
+    capacity: 7500,
     costScaling: 1.15,
   },
   {
@@ -82,14 +82,14 @@ export const CAPACITY_BUILDINGS: CapacityBuilding[] = [
     description: 'Datacenter-grade. The room hums.',
     resource: 'cooling',
     baseCost: 500000,
-    capacity: 150000,
+    capacity: 75000,
     costScaling: 1.15,
   },
 ];
 
 // Free starting capacity so brand-new players don't immediately stall.
 export const STARTING_POWER_CAPACITY = 100;
-export const STARTING_COOLING_CAPACITY = 200;
+export const STARTING_COOLING_CAPACITY = 150;
 
 export function getCapacityBuildingCost(
   building: CapacityBuilding,
