@@ -45,6 +45,7 @@ export default function App() {
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
   const addCredits = useGameStore((state) => state.addCredits);
+  const devTriggerIncident = useGameStore((state) => state.devTriggerIncident);
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const staff = useGameStore((state) => state.staff);
   const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
@@ -222,13 +223,59 @@ export default function App() {
         <OverclockToggle />
 
         {/* DEV — remove before ship */}
-        <TouchableOpacity
-          style={styles.devButton}
-          onPress={() => addCredits(10000)}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.devButtonText}>+10K (DEV)</Text>
-        </TouchableOpacity>
+        <View style={styles.devPanel}>
+          <Text style={styles.devLabel}>DEV TOOLS</Text>
+          <View style={styles.devRow}>
+            <TouchableOpacity
+              style={styles.devButton}
+              onPress={() => addCredits(10000)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devButtonText}>+10K</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButton}
+              onPress={() => addCredits(1_000_000)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devButtonText}>+1M</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.devRow}>
+            <TouchableOpacity
+              style={styles.devButtonSmall}
+              onPress={() => devTriggerIncident('ddos')}
+            >
+              <Text style={styles.devButtonText}>🛑 DDoS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButtonSmall}
+              onPress={() => devTriggerIncident('disk_full')}
+            >
+              <Text style={styles.devButtonText}>💾 Disk</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButtonSmall}
+              onPress={() => devTriggerIncident('vendor_offer')}
+            >
+              <Text style={styles.devButtonText}>💰 Vendor</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.devRow}>
+            <TouchableOpacity
+              style={styles.devButtonSmall}
+              onPress={() => devTriggerIncident('memory_leak')}
+            >
+              <Text style={styles.devButtonText}>🧠 Mem</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButtonSmall}
+              onPress={() => devTriggerIncident('hacker_breach')}
+            >
+              <Text style={styles.devButtonText}>🚨 Hack</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Drill-down nav */}
         <View style={styles.navSection}>
@@ -403,20 +450,46 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   // DEV — remove before ship
-  devButton: {
-    backgroundColor: '#332200',
+  devPanel: {
+    backgroundColor: '#1a0d00',
     borderColor: '#aa6600',
     borderWidth: 1,
     borderStyle: 'dashed',
     borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
+    padding: 8,
     marginBottom: 14,
+  },
+  devLabel: {
+    color: '#aa6600',
+    fontSize: 9,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  devRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+  devButton: {
+    flex: 1,
+    backgroundColor: '#332200',
+    borderRadius: 6,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  devButtonSmall: {
+    flex: 1,
+    backgroundColor: '#332200',
+    borderRadius: 6,
+    paddingVertical: 6,
+    alignItems: 'center',
   },
   devButtonText: {
     color: '#ffaa44',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
 });

@@ -121,6 +121,8 @@ export interface GameState {
   tapHackerSequence: (letter: string) => void;
   acceptVendorOffer: () => void;
   clearIncidentResolution: () => void;
+  // DEV ONLY — remove before ship
+  devTriggerIncident: (type: import('./incidents').IncidentType) => void;
   collectOfflineEarnings: () => Promise<void>;
   saveGame: () => Promise<void>;
   loadGame: () => Promise<void>;
@@ -668,6 +670,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   clearIncidentResolution: () => {
     set({ lastIncidentResolution: null });
+  },
+
+  // DEV ONLY — remove before ship
+  devTriggerIncident: (type) => {
+    set({ activeIncident: createIncident(type) });
   },
 
   collectOfflineEarnings: async () => {
