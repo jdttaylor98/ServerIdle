@@ -5,6 +5,8 @@ export interface ServerTier {
   baseCost: number;
   baseOutput: number; // credits per second per unit
   costScaling: number; // multiplier per purchase
+  powerDraw: number; // watts consumed per unit
+  heatOutput: number; // BTU generated per unit
 }
 
 export const SERVER_TIERS: ServerTier[] = [
@@ -15,6 +17,8 @@ export const SERVER_TIERS: ServerTier[] = [
     baseCost: 10,
     baseOutput: 0.5,
     costScaling: 1.15,
+    powerDraw: 5,
+    heatOutput: 5,
   },
   {
     id: 'rack',
@@ -23,6 +27,8 @@ export const SERVER_TIERS: ServerTier[] = [
     baseCost: 250,
     baseOutput: 5,
     costScaling: 1.15,
+    powerDraw: 200,
+    heatOutput: 200,
   },
   {
     id: 'blade',
@@ -31,8 +37,22 @@ export const SERVER_TIERS: ServerTier[] = [
     baseCost: 5000,
     baseOutput: 30,
     costScaling: 1.15,
+    powerDraw: 1000,
+    heatOutput: 1000,
   },
 ];
+
+export function getTotalPowerDraw(servers: Record<string, number>): number {
+  return SERVER_TIERS.reduce((total, tier) => {
+    return total + tier.powerDraw * (servers[tier.id] ?? 0);
+  }, 0);
+}
+
+export function getTotalHeatOutput(servers: Record<string, number>): number {
+  return SERVER_TIERS.reduce((total, tier) => {
+    return total + tier.heatOutput * (servers[tier.id] ?? 0);
+  }, 0);
+}
 
 export function getServerCost(tier: ServerTier, owned: number): number {
   return Math.floor(tier.baseCost * Math.pow(tier.costScaling, owned));

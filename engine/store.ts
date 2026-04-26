@@ -4,7 +4,15 @@ import {
   SERVER_TIERS,
   getServerCost,
   getTotalOutput,
+  getTotalPowerDraw,
+  getTotalHeatOutput,
 } from './servers';
+import {
+  CAPACITY_BUILDINGS,
+  getCapacityBuildingCost,
+  getTotalCapacity,
+  getEfficiency,
+} from './capacity';
 
 const SAVE_KEY = 'serverIdle_save';
 const MAX_OFFLINE_SECONDS = 8 * 60 * 60; // 8 hour cap
@@ -17,7 +25,8 @@ const OVERCLOCK_FAILURE_CHANCE = 0.005; // 0.5% per tick
 
 export interface GameState {
   credits: number;
-  servers: Record<string, number>; // tier id -> count owned
+  servers: Record<string, number>;
+  capacity: Record<string, number>; // capacity building id -> count
   overclockEnabled: boolean;
   lastFailure: { tierId: string; lost: number } | null;
 
@@ -25,13 +34,17 @@ export interface GameState {
   pendingOfflineEarnings: number;
   hydrated: boolean;
 
-  // Derived
+  // Derived getters
   getCreditsPerSec: () => number;
+  getPowerStats: () => { used: number; capacity: number; efficiency: number };
+  getCoolingStats: () => { used: number; capacity: number; efficiency: number };
+  getEfficiencyMultiplier: () => number;
 
   // Actions
   tick: () => void;
   addCredits: (amount: number) => void;
   buyServer: (tierId: string) => void;
+  buyCapacityBuilding: (buildingId: string) => void;
   toggleOverclock: () => void;
   clearFailureNotice: () => void;
   collectOfflineEarnings: () => Promise<void>;
@@ -42,6 +55,7 @@ export interface GameState {
 interface SaveData {
   credits: number;
   servers: Record<string, number>;
+  capacity: Record<string, number>;
   overclockEnabled: boolean;
   savedAt: number;
   pendingOfflineEarnings: number;
@@ -49,15 +63,29 @@ interface SaveData {
 
 function calcCreditsPerSec(
   servers: Record<string, number>,
+  capacity: Record<string, number>,
   overclockEnabled: boolean
 ): number {
-  const base = BASE_CREDITS_PER_SEC + getTotalOutput(servers);
-  return overclockEnabled ? base * OVERCLOCK_MULTIPLIER : base;
+  const baseOutput = BASE_CREDITS_PER_SEC + getTotalOutput(servers);
+  const overclockMult = overclockEnabled ? OVERCLOCK_MULTIPLIER : 1;
+
+  const powerEff = getEfficiency(
+    getTotalPowerDraw(servers),
+    getTotalCapacity(capacity, 'power')
+  );
+  const coolingEff = getEfficiency(
+    getTotalHeatOutput(servers),
+    getTotalCapacity(capacity, 'cooling')
+  );
+  const efficiency = Math.min(powerEff, coolingEff);
+
+  return baseOutput * overclockMult * efficiency;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
   credits: 0,
   servers: {},
+  capacity: {},
   overclockEnabled: false,
   lastFailure: null,
   lastSavedAt: Date.now(),
@@ -65,23 +93,49 @@ export const useGameStore = create<GameState>((set, get) => ({
   hydrated: false,
 
   getCreditsPerSec: () => {
-    const { servers, overclockEnabled } = get();
-    return calcCreditsPerSec(servers, overclockEnabled);
+    const { servers, capacity, overclockEnabled } = get();
+    return calcCreditsPerSec(servers, capacity, overclockEnabled);
+  },
+
+  getPowerStats: () => {
+    const { servers, capacity } = get();
+    const used = getTotalPowerDraw(servers);
+    const cap = getTotalCapacity(capacity, 'power');
+    return { used, capacity: cap, efficiency: getEfficiency(used, cap) };
+  },
+
+  getCoolingStats: () => {
+    const { servers, capacity } = get();
+    const used = getTotalHeatOutput(servers);
+    const cap = getTotalCapacity(capacity, 'cooling');
+    return { used, capacity: cap, efficiency: getEfficiency(used, cap) };
+  },
+
+  getEfficiencyMultiplier: () => {
+    const { servers, capacity } = get();
+    const powerEff = getEfficiency(
+      getTotalPowerDraw(servers),
+      getTotalCapacity(capacity, 'power')
+    );
+    const coolingEff = getEfficiency(
+      getTotalHeatOutput(servers),
+      getTotalCapacity(capacity, 'cooling')
+    );
+    return Math.min(powerEff, coolingEff);
   },
 
   tick: () => {
-    const { credits, servers, overclockEnabled } = get();
-    const cps = calcCreditsPerSec(servers, overclockEnabled);
+    const { credits, servers, capacity, overclockEnabled } = get();
+    const cps = calcCreditsPerSec(servers, capacity, overclockEnabled);
 
-    // Overclock failure check — only matters if overclock is on AND there are servers
     if (overclockEnabled) {
       const totalServers = Object.values(servers).reduce((a, b) => a + b, 0);
       if (totalServers > 0 && Math.random() < OVERCLOCK_FAILURE_CHANCE) {
-        // Pick a random tier the player owns and destroy ONE unit
         const ownedTiers = SERVER_TIERS.filter(
           (t) => (servers[t.id] ?? 0) > 0
         );
-        const victim = ownedTiers[Math.floor(Math.random() * ownedTiers.length)];
+        const victim =
+          ownedTiers[Math.floor(Math.random() * ownedTiers.length)];
         set({
           credits: credits + cps,
           servers: { ...servers, [victim.id]: servers[victim.id] - 1 },
@@ -114,6 +168,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  buyCapacityBuilding: (buildingId) => {
+    const { credits, capacity } = get();
+    const building = CAPACITY_BUILDINGS.find((b) => b.id === buildingId);
+    if (!building) return;
+
+    const owned = capacity[buildingId] ?? 0;
+    const cost = getCapacityBuildingCost(building, owned);
+    if (credits < cost) return;
+
+    set({
+      credits: credits - cost,
+      capacity: { ...capacity, [buildingId]: owned + 1 },
+    });
+  },
+
   toggleOverclock: () => {
     set((state) => ({ overclockEnabled: !state.overclockEnabled }));
   },
@@ -133,11 +202,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   saveGame: async () => {
-    const { credits, servers, overclockEnabled, pendingOfflineEarnings } = get();
+    const { credits, servers, capacity, overclockEnabled, pendingOfflineEarnings } = get();
     const now = Date.now();
     const data: SaveData = {
       credits,
       servers,
+      capacity,
       overclockEnabled,
       savedAt: now,
       pendingOfflineEarnings,
@@ -163,6 +233,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const cps = calcCreditsPerSec(
       data.servers ?? {},
+      data.capacity ?? {},
       data.overclockEnabled ?? false
     );
     const newOffline = elapsedSec * cps * OFFLINE_EFFICIENCY;
@@ -171,16 +242,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       credits: data.credits ?? 0,
       servers: data.servers ?? {},
+      capacity: data.capacity ?? {},
       overclockEnabled: data.overclockEnabled ?? false,
       pendingOfflineEarnings: totalPending,
       lastSavedAt: now,
       hydrated: true,
     });
 
-    // Persist immediately so we don't double-count this period
     const refreshed: SaveData = {
       credits: data.credits ?? 0,
       servers: data.servers ?? {},
+      capacity: data.capacity ?? {},
       overclockEnabled: data.overclockEnabled ?? false,
       savedAt: now,
       pendingOfflineEarnings: totalPending,

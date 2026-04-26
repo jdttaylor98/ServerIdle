@@ -14,6 +14,7 @@ import { WelcomeBack } from './components/WelcomeBack';
 import { ServerList } from './components/ServerList';
 import { OverclockToggle } from './components/OverclockToggle';
 import { FailureNotice } from './components/FailureNotice';
+import { CapacitySection } from './components/CapacitySection';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -86,6 +87,7 @@ export default function App() {
 
         <OverclockToggle />
         <ServerList />
+        <CapacitySection />
       </ScrollView>
     </SafeAreaView>
   );

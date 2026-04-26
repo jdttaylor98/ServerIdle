@@ -1,43 +1,41 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { ServerTier, getServerCost, getServerOutput } from '../engine/servers';
+import { CapacityBuilding, getCapacityBuildingCost } from '../engine/capacity';
 import { useGameStore } from '../engine/store';
 
 interface Props {
-  tier: ServerTier;
+  building: CapacityBuilding;
 }
 
-export function ServerRow({ tier }: Props) {
+export function CapacityRow({ building }: Props) {
   const credits = useGameStore((state) => state.credits);
-  const owned = useGameStore((state) => state.servers[tier.id] ?? 0);
-  const buyServer = useGameStore((state) => state.buyServer);
+  const owned = useGameStore((state) => state.capacity[building.id] ?? 0);
+  const buy = useGameStore((state) => state.buyCapacityBuilding);
 
-  const cost = getServerCost(tier, owned);
-  const totalOutput = getServerOutput(tier, owned);
+  const cost = getCapacityBuildingCost(building, owned);
+  const totalProvided = building.capacity * owned;
   const canAfford = credits >= cost;
+  const unit = building.resource === 'power' ? 'W' : 'BTU';
 
   return (
     <View style={styles.row}>
       <View style={styles.info}>
         <View style={styles.headerRow}>
-          <Text style={styles.name}>{tier.name}</Text>
+          <Text style={styles.name}>{building.name}</Text>
           <Text style={styles.owned}>×{owned}</Text>
         </View>
-        <Text style={styles.description}>{tier.description}</Text>
+        <Text style={styles.description}>{building.description}</Text>
         <Text style={styles.perUnit}>
-          {tier.baseOutput.toFixed(1)} credits/sec each
+          +{building.capacity} {unit} each
         </Text>
         <Text style={styles.output}>
-          Total: {totalOutput.toFixed(1)} credits/sec
-        </Text>
-        <Text style={styles.consumption}>
-          {tier.powerDraw}W · {tier.heatOutput} BTU per unit
+          Total: +{totalProvided} {unit}
         </Text>
       </View>
 
       <TouchableOpacity
         style={[styles.buyButton, !canAfford && styles.buyButtonDisabled]}
-        onPress={() => buyServer(tier.id)}
+        onPress={() => buy(building.id)}
         disabled={!canAfford}
         activeOpacity={0.7}
       >
@@ -78,11 +76,11 @@ const styles = StyleSheet.create({
   },
   name: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   owned: {
-    color: '#00ff88',
+    color: '#7af',
     fontSize: 13,
     marginLeft: 8,
   },
@@ -97,16 +95,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   output: {
-    color: '#00ff88',
+    color: '#7af',
     fontSize: 12,
   },
-  consumption: {
-    color: '#555',
-    fontSize: 10,
-    marginTop: 2,
-  },
   buyButton: {
-    backgroundColor: '#00ff88',
+    backgroundColor: '#7af',
     borderRadius: 8,
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -118,7 +111,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#222',
   },
   buyText: {
-    color: '#000',
+    color: '#001',
     fontWeight: 'bold',
     fontSize: 13,
     letterSpacing: 1,
@@ -127,7 +120,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   cost: {
-    color: '#000',
+    color: '#001',
     fontSize: 12,
     marginTop: 2,
   },
