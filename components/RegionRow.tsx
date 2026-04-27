@@ -1,35 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { ServerTier, getServerCost, getServerOutput } from '../engine/servers';
-import { getServerOutputMultiplier } from '../engine/upgrades';
+import { CloudRegion } from '../engine/regions';
 import { useGameStore } from '../engine/store';
 
 interface Props {
-  tier: ServerTier;
+  region: CloudRegion;
 }
 
-export function ServerRow({ tier }: Props) {
+export function RegionRow({ region }: Props) {
   const credits = useGameStore((state) => state.credits);
-  const owned = useGameStore((state) => state.servers[tier.id] ?? 0);
-  const upgrades = useGameStore((state) => state.upgrades);
-  const buyServer = useGameStore((state) => state.buyServer);
-  const sellServer = useGameStore((state) => state.sellServer);
+  const owned = useGameStore((state) => !!state.regions[region.id]);
+  const buyRegion = useGameStore((state) => state.buyRegion);
+  const sellRegion = useGameStore((state) => state.sellRegion);
   const activeBuild = useGameStore((state) => state.activeBuild);
   const cancelBuild = useGameStore((state) => state.cancelBuild);
 
-  const cost = getServerCost(tier, owned);
-  const tierMult = getServerOutputMultiplier(tier.id, upgrades);
-  const perUnit = tier.baseOutput * tierMult;
-  const totalOutput = getServerOutput(tier, owned) * tierMult;
-  const canAfford = credits >= cost;
-  const refund = owned > 0 ? Math.floor(getServerCost(tier, owned - 1) * 0.5) : 0;
-
   const isBuildingThis =
-    activeBuild?.kind === 'server' && activeBuild?.id === tier.id;
+    activeBuild?.kind === 'region' && activeBuild?.id === region.id;
   const isBuildingOther = !!activeBuild && !isBuildingThis;
-  const buildable = !!tier.buildTimeSeconds && tier.buildTimeSeconds > 0;
+  const canAfford = credits >= region.cost;
 
-  // Re-render every 250ms while a build is active so the timer ticks down
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!isBuildingThis) return;
@@ -38,63 +28,61 @@ export function ServerRow({ tier }: Props) {
   }, [isBuildingThis]);
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, owned && styles.rowOwned]}>
       <View style={styles.info}>
         <View style={styles.headerRow}>
-          <Text style={styles.name}>{tier.name}</Text>
-          <Text style={styles.owned}>×{owned}</Text>
+          <Text style={styles.name}>
+            🌐 {region.name}
+            {owned ? '  ✓' : ''}
+          </Text>
         </View>
-        <Text style={styles.description}>{tier.description}</Text>
-        <Text style={styles.perUnit}>
-          {perUnit.toFixed(2)} credits/sec each
-          {tierMult > 1 ? ` (×${tierMult.toFixed(2)})` : ''}
-        </Text>
+        <Text style={styles.description}>{region.description}</Text>
         <Text style={styles.output}>
-          Total: {totalOutput.toFixed(1)} credits/sec
+          {region.output.toLocaleString()} cr/sec
         </Text>
         <Text style={styles.consumption}>
-          {tier.powerDraw}W · {tier.heatOutput} BTU per unit
-          {buildable
-            ? ` · ${formatDuration(tier.buildTimeSeconds!)} build`
-            : ''}
+          {region.powerDraw.toLocaleString()}W ·{' '}
+          {region.heatOutput.toLocaleString()} BTU · {Math.round(region.buildTimeSeconds / 60)}min build
         </Text>
 
-        {isBuildingThis && (
+        {isBuildingThis && activeBuild && (
           <BuildIndicator
-            startedAt={activeBuild!.startedAt}
-            completesAt={activeBuild!.completesAt}
+            startedAt={activeBuild.startedAt}
+            completesAt={activeBuild.completesAt}
             onCancel={cancelBuild}
           />
         )}
 
-        {owned > 0 && (
+        {owned && (
           <TouchableOpacity
             style={styles.sellButton}
-            onPress={() => sellServer(tier.id)}
+            onPress={() => sellRegion(region.id)}
             activeOpacity={0.6}
           >
-            <Text style={styles.sellText}>Sell 1 · refund {formatCost(refund)}</Text>
+            <Text style={styles.sellText}>
+              Decommission · refund {formatCost(Math.floor(region.cost * 0.5))}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {!isBuildingThis && (
+      {!owned && !isBuildingThis && (
         <TouchableOpacity
           style={[
-            styles.buyButton,
-            (!canAfford || isBuildingOther) && styles.buyButtonDisabled,
+            styles.buildButton,
+            (!canAfford || isBuildingOther) && styles.buildButtonDisabled,
           ]}
-          onPress={() => buyServer(tier.id)}
+          onPress={() => buyRegion(region.id)}
           disabled={!canAfford || isBuildingOther}
           activeOpacity={0.7}
         >
           <Text
             style={[
-              styles.buyText,
-              (!canAfford || isBuildingOther) && styles.buyTextDisabled,
+              styles.buildText,
+              (!canAfford || isBuildingOther) && styles.buildTextDisabled,
             ]}
           >
-            {buildable ? 'BUILD' : 'BUY'}
+            LEASE
           </Text>
           <Text
             style={[
@@ -102,7 +90,7 @@ export function ServerRow({ tier }: Props) {
               (!canAfford || isBuildingOther) && styles.costDisabled,
             ]}
           >
-            {formatCost(cost)}
+            {formatCost(region.cost)}
           </Text>
         </TouchableOpacity>
       )}
@@ -128,7 +116,7 @@ function BuildIndicator({
   return (
     <View style={styles.buildBox}>
       <View style={styles.buildHeader}>
-        <Text style={styles.buildLabel}>BUILDING…</Text>
+        <Text style={styles.buildLabel}>PROVISIONING…</Text>
         <Text style={styles.buildTimer}>{formatMs(remainingMs)}</Text>
       </View>
       <View style={styles.buildTrack}>
@@ -145,11 +133,6 @@ function formatCost(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return `${n}`;
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds >= 60) return `${Math.round(seconds / 60)}min`;
-  return `${seconds}s`;
 }
 
 function formatMs(ms: number): string {
@@ -169,9 +152,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a4a',
   },
-  info: {
-    flex: 1,
+  rowOwned: {
+    backgroundColor: '#0e2418',
+    borderColor: '#00ff88',
   },
+  info: { flex: 1 },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -182,24 +167,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  owned: {
-    color: '#00ff88',
-    fontSize: 13,
-    marginLeft: 8,
-  },
   description: {
-    color: '#666',
+    color: '#888',
     fontSize: 11,
+    fontStyle: 'italic',
     marginBottom: 4,
-  },
-  perUnit: {
-    color: '#666',
-    fontSize: 11,
-    marginBottom: 2,
   },
   output: {
     color: '#00ff88',
     fontSize: 12,
+    fontWeight: 'bold',
   },
   consumption: {
     color: '#555',
@@ -259,7 +236,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textDecorationLine: 'underline',
   },
-  buyButton: {
+  buildButton: {
     backgroundColor: '#00ff88',
     borderRadius: 8,
     paddingHorizontal: 18,
@@ -268,16 +245,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 80,
   },
-  buyButtonDisabled: {
+  buildButtonDisabled: {
     backgroundColor: '#222',
   },
-  buyText: {
+  buildText: {
     color: '#000',
     fontWeight: 'bold',
     fontSize: 13,
     letterSpacing: 1,
   },
-  buyTextDisabled: {
+  buildTextDisabled: {
     color: '#555',
   },
   cost: {

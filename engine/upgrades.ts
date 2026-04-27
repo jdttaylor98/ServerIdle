@@ -128,6 +128,16 @@ export const UPGRADES: Upgrade[] = [
     unlockCheck: (servers) => (servers['datacenter'] ?? 0) >= 1,
     unlockHint: 'Build a Data Center',
   },
+  {
+    id: 'multi_region',
+    name: 'Multi-Region Deployment',
+    description: 'Unlock the Cloud screen — lease cloud regions worldwide',
+    era: 'datacenter',
+    cost: 1_000_000,
+    prereqs: [],
+    unlockCheck: (servers) => (servers['datacenter'] ?? 0) >= 1,
+    unlockHint: 'Build a Data Center',
+  },
 ];
 
 export function isUpgradeAvailable(

@@ -21,8 +21,10 @@ import { PowerScreen } from './components/PowerScreen';
 import { CoolingScreen } from './components/CoolingScreen';
 import { StaffScreen } from './components/StaffScreen';
 import { ResearchScreen } from './components/ResearchScreen';
+import { CloudScreen } from './components/CloudScreen';
 import { isStaffNavVisible, getResearchPointsPerSec } from './engine/staff';
 import { isResearchNavVisible } from './engine/research';
+import { isCloudUnlocked } from './engine/regions';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -43,7 +45,8 @@ type Screen =
   | 'power'
   | 'cooling'
   | 'staff'
-  | 'research';
+  | 'research'
+  | 'cloud';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -52,6 +55,7 @@ export default function App() {
   const overclockEnabled = useGameStore((state) => state.overclockEnabled);
   const upgrades = useGameStore((state) => state.upgrades);
   const servers = useGameStore((state) => state.servers);
+  const regions = useGameStore((state) => state.regions);
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
   const addCredits = useGameStore((state) => state.addCredits);
@@ -131,6 +135,14 @@ export default function App() {
       </>
     );
   }
+  if (screen === 'cloud') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <CloudScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
 
   // Main dashboard
   const cps = getCreditsPerSec();
@@ -142,6 +154,8 @@ export default function App() {
   const researchLabOwned = getGateState().researchLabOwned;
   const showResearch = researchPoints > 0 || rpPerSec > 0 || researchLabOwned;
   const showResearchNav = isResearchNavVisible(researchLabOwned, researchPoints);
+  const showCloudNav = isCloudUnlocked(upgrades);
+  const ownedRegionCount = Object.values(regions).filter(Boolean).length;
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
 
@@ -363,6 +377,18 @@ export default function App() {
               label="RESEARCH"
               hint={`${researchPoints.toFixed(1)} RP available`}
               onPress={() => setScreen('research')}
+            />
+          )}
+          {showCloudNav && (
+            <NavTile
+              icon="🌐"
+              label="CLOUD"
+              hint={
+                ownedRegionCount > 0
+                  ? `${ownedRegionCount}/4 regions leased`
+                  : 'Lease cloud regions'
+              }
+              onPress={() => setScreen('cloud')}
             />
           )}
         </View>

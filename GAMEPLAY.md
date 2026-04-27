@@ -50,6 +50,7 @@ The game is split across a main dashboard and four drill-down screens, all acces
 | **Cooling** | Buy/sell cooling capacity buildings + full cooling meter |
 | **Staff** | Hire/fire IT roles with passive effects + ongoing salaries |
 | **Research** | Spend Research Points on permanent in-run buffs |
+| **Cloud** | Lease cloud regions (one of each) — unlocked via Multi-Region Deployment upgrade |
 | **Upgrades** | Tree-view of unlockable upgrades organized by era |
 
 Mini meters on the dashboard always show real-time power/cooling usage so you can spot overload at a glance.
@@ -213,6 +214,25 @@ Each Data Scientist generates **0.1 RP/sec**, multiplied by your Engineering Man
 
 (Research Points generate at full rate offline — no efficiency penalty, since they aren't gated by power/cooling.)
 
+## Cloud regions (Phase 5c)
+
+A new infrastructure category alongside servers and clusters. **Cloud regions** are unique entities: max **one** of each. They're significantly more output-dense than even Data Centers, and they share the same build queue as servers (so only one build runs at a time across the whole game).
+
+To unlock: own 1 Data Center → buy the **Multi-Region Deployment** upgrade (1M cr) in the Data Center upgrade era → the **🌐 CLOUD** nav tile appears.
+
+| Region | Lease cost | Output | Build time | Power | Heat |
+|---|---|---|---|---|---|
+| US-East | 1M cr | 1,500 cr/sec | 3 min | 8,000W | 12,000 BTU |
+| EU-West | 2.5M cr | 3,500 cr/sec | 5 min | 12,000W | 18,000 BTU |
+| AP-South | 5M cr | 7,000 cr/sec | 8 min | 18,000W | 27,000 BTU |
+| Edge Network | 12M cr | 15,000 cr/sec | 12 min | 25,000W | 37,500 BTU |
+
+Owning all four = **+27,000 cr/sec** plain — comparable to dozens of Blade clusters with significantly less floor space invested.
+
+Decommission a region for a 50% refund (a one-time setback rather than a regret).
+
+(Phase 5d will introduce **ongoing service costs** for cloud regions, making net income vs. payroll a real strategic concern.)
+
 ## Build queues
 
 Some structures are too big to spin up instantly. **Data Centers** (and other large facilities coming in later phases) require real-time **build timers** instead of instant purchase.
@@ -331,8 +351,8 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 ### Phase 5 — Data Center & Cloud
 - ~~Data Center tier with real-time build timers~~ ✅ shipped (Phase 5a)
 - ~~Research Points + Data Scientist staff role~~ ✅ shipped (Phase 5b)
-- **Multi-region cloud** with separate income streams + latency tradeoffs (Phase 5c — next)
-- **Cost layer:** ongoing service costs, net income display (Phase 5d)
+- ~~Multi-region cloud~~ ✅ shipped (Phase 5c)
+- **Service cost layer:** ongoing per-second costs for regions, net income tightening (Phase 5d — next)
 
 ### Phase 6 — AI Endgame & Prestige
 - **GPU hardware** tier (power-hungry, generates Research Points)
@@ -406,6 +426,7 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 | Upgrade | Cost | Prereqs | Effect |
 |---|---|---|---|
 | Research Lab | 250,000 | Own 1 Data Center | Unlock Data Scientist + Research Points |
+| Multi-Region Deployment | 1,000,000 | Own 1 Data Center | Unlock the Cloud screen + region leases |
 
 ---
 
