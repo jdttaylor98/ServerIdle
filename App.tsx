@@ -20,7 +20,9 @@ import { ServersScreen } from './components/ServersScreen';
 import { PowerScreen } from './components/PowerScreen';
 import { CoolingScreen } from './components/CoolingScreen';
 import { StaffScreen } from './components/StaffScreen';
+import { ResearchScreen } from './components/ResearchScreen';
 import { isStaffNavVisible, getResearchPointsPerSec } from './engine/staff';
+import { isResearchNavVisible } from './engine/research';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -34,7 +36,14 @@ import {
 } from './engine/servers';
 import { getTotalCapacity } from './engine/capacity';
 
-type Screen = 'main' | 'upgrades' | 'servers' | 'power' | 'cooling' | 'staff';
+type Screen =
+  | 'main'
+  | 'upgrades'
+  | 'servers'
+  | 'power'
+  | 'cooling'
+  | 'staff'
+  | 'research';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -48,6 +57,7 @@ export default function App() {
   const addCredits = useGameStore((state) => state.addCredits);
   const devTriggerIncident = useGameStore((state) => state.devTriggerIncident);
   const devSkipBuild = useGameStore((state) => state.devSkipBuild);
+  const devAddResearchPoints = useGameStore((state) => state.devAddResearchPoints);
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const staff = useGameStore((state) => state.staff);
   const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
@@ -113,6 +123,14 @@ export default function App() {
       </>
     );
   }
+  if (screen === 'research') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <ResearchScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
 
   // Main dashboard
   const cps = getCreditsPerSec();
@@ -121,8 +139,9 @@ export default function App() {
   const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
   const showStaffNav = isStaffNavVisible(getGateState());
   const rpPerSec = getResearchPointsPerSec(staff);
-  const showResearch =
-    researchPoints > 0 || rpPerSec > 0 || getGateState().researchLabOwned;
+  const researchLabOwned = getGateState().researchLabOwned;
+  const showResearch = researchPoints > 0 || rpPerSec > 0 || researchLabOwned;
+  const showResearchNav = isResearchNavVisible(researchLabOwned, researchPoints);
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
 
@@ -261,6 +280,13 @@ export default function App() {
             >
               <Text style={styles.devButtonText}>SKIP BUILD</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButton}
+              onPress={() => devAddResearchPoints(100)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devButtonText}>+100 RP</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.devRow}>
             <TouchableOpacity
@@ -329,6 +355,14 @@ export default function App() {
                   : 'Hire your team'
               }
               onPress={() => setScreen('staff')}
+            />
+          )}
+          {showResearchNav && (
+            <NavTile
+              icon="🔬"
+              label="RESEARCH"
+              hint={`${researchPoints.toFixed(1)} RP available`}
+              onPress={() => setScreen('research')}
             />
           )}
         </View>

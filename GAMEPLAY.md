@@ -49,6 +49,7 @@ The game is split across a main dashboard and four drill-down screens, all acces
 | **Power** | Buy/sell power capacity buildings + full power meter |
 | **Cooling** | Buy/sell cooling capacity buildings + full cooling meter |
 | **Staff** | Hire/fire IT roles with passive effects + ongoing salaries |
+| **Research** | Spend Research Points on permanent in-run buffs |
 | **Upgrades** | Tree-view of unlockable upgrades organized by era |
 
 Mini meters on the dashboard always show real-time power/cooling usage so you can spot overload at a glance.
@@ -195,7 +196,20 @@ To unlock:
 
 Each Data Scientist generates **0.1 RP/sec**, multiplied by your Engineering Manager bonus. The dashboard shows total RP and the per-second rate once you've unlocked anything Research-related.
 
-**Research Points don't have a use yet.** They're the prerequisite currency for Phase 6's AI agents and the prestige skill tree. Stockpiling now sets up the endgame.
+**Spend RP on the Research Tree.** A new **🔬 RESEARCH** nav tile appears once you've unlocked the Research Lab. Each node is a permanent in-run buff bought with RP.
+
+| Node | Cost | Prereqs | Effect |
+|---|---|---|---|
+| Distributed Computing | 10 RP | — | Research Points gain ×2 |
+| Predictive Scaling | 25 RP | — | All server + cluster output ×1.10 |
+| Smart Caching | 75 RP | Distributed Computing | PROVISION tap credits ×2 |
+| Liquid Nitrogen Cooling | 200 RP | Predictive Scaling | Cooling capacity ×1.5 |
+| Power Optimization | 500 RP | Liquid Nitrogen | Server power draw −20% |
+| CUDA Drivers | 1500 RP | Power Optimization + Smart Caching | Reveals GPU tier (Phase 6 preview, no effect yet) |
+
+**Research nodes are lost on prestige** (Phase 6) — they're a per-run progression, distinct from the cross-run **Skill Tree** that prestige unlocks.
+
+**Strategy:** Distributed Computing first (compounds your RP gain) is usually the right opening. From there you choose: tap-build (Smart Caching → Hyperthreading style) or output-build (Predictive Scaling → Liquid Nitrogen → Power Optimization).
 
 (Research Points generate at full rate offline — no efficiency penalty, since they aren't gated by power/cooling.)
 
