@@ -127,6 +127,7 @@ export interface GameState {
   clearIncidentResolution: () => void;
   // DEV ONLY — remove before ship
   devTriggerIncident: (type: import('./incidents').IncidentType) => void;
+  devSkipBuild: () => void;
   collectOfflineEarnings: () => Promise<void>;
   saveGame: () => Promise<void>;
   loadGame: () => Promise<void>;
@@ -735,6 +736,16 @@ export const useGameStore = create<GameState>((set, get) => ({
   // DEV ONLY — remove before ship
   devTriggerIncident: (type) => {
     set({ activeIncident: createIncident(type) });
+  },
+
+  devSkipBuild: () => {
+    const { activeBuild, servers } = get();
+    if (!activeBuild) return;
+    const owned = servers[activeBuild.tierId] ?? 0;
+    set({
+      servers: { ...servers, [activeBuild.tierId]: owned + 1 },
+      activeBuild: null,
+    });
   },
 
   collectOfflineEarnings: async () => {

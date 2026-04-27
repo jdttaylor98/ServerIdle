@@ -47,6 +47,7 @@ export default function App() {
   const tapProvision = useGameStore((state) => state.tapProvision);
   const addCredits = useGameStore((state) => state.addCredits);
   const devTriggerIncident = useGameStore((state) => state.devTriggerIncident);
+  const devSkipBuild = useGameStore((state) => state.devSkipBuild);
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const staff = useGameStore((state) => state.staff);
   const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
@@ -252,6 +253,13 @@ export default function App() {
               activeOpacity={0.7}
             >
               <Text style={styles.devButtonText}>+1M</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButton}
+              onPress={devSkipBuild}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devButtonText}>SKIP BUILD</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.devRow}>
