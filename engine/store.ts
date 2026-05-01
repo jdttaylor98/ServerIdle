@@ -68,6 +68,7 @@ import {
   AGENT_TYPES,
   getTotalAgentSalary,
   getDevOpsInterval,
+  getDevOpsMinEfficiency,
   getResponderDelay,
   getResponderRewardMult,
   shouldOverclock,
@@ -561,26 +562,72 @@ export const useGameStore = create<GameState>((set, get) => ({
       nextOverclock = shouldOverclock(agentAutonomy, hasRedundantPsu, sreCount);
     }
 
-    // DevOps Agent: auto-buy best affordable server
+    // DevOps Agent: auto-buy servers AND capacity to keep efficiency healthy
+    let nextCapacity = capacity;
     if (agents['devops_agent']) {
       const interval = getDevOpsInterval(agentAutonomy);
       if (devOpsAccum >= interval) {
         devOpsAccum = 0;
-        // Find the most expensive affordable server tier (best value)
         const currentCredits = credits + cps + cronCredits - totalDrain - incidentPenalty;
-        const affordableTiers = SERVER_TIERS.filter((t) => {
-          const owned = nextServers[t.id] ?? 0;
-          const cost = getServerCost(t, owned);
-          return cost <= currentCredits && !t.buildTimeSeconds;
-        });
-        if (affordableTiers.length > 0) {
-          const best = affordableTiers[affordableTiers.length - 1]; // highest tier
-          const owned = nextServers[best.id] ?? 0;
-          const cost = getServerCost(best, owned);
-          nextServers = { ...nextServers, [best.id]: owned + 1 };
-          // Deduct cost via incidentPenalty hack (it all goes through the same Math.max(0,...))
-          incidentPenalty += cost;
+        const minEff = getDevOpsMinEfficiency(agentAutonomy);
+
+        // Check current efficiency
+        const powerDrawMult = getResearchPowerDrawMultiplier(research);
+        const coolingCapMult = getResearchCoolingMultiplier(research);
+        const curPowerUsed =
+          (getTotalPowerDraw(nextServers) +
+            getTotalClusterPower(clusters) +
+            getOwnedRegionsPower(nextRegions) +
+            getTotalGpuPower(nextGpus)) *
+          powerDrawMult;
+        const curHeatUsed =
+          getTotalHeatOutput(nextServers) +
+          getTotalClusterHeat(clusters) +
+          getOwnedRegionsHeat(nextRegions) +
+          getTotalGpuHeat(nextGpus);
+        const curPowerCap =
+          getTotalCapacity(nextCapacity, 'power') + getBonusPowerCapacity(upgrades);
+        const curCoolingCap = getTotalCapacity(nextCapacity, 'cooling') * coolingCapMult;
+        const powerEff = getEfficiency(curPowerUsed, curPowerCap);
+        const coolingEff = getEfficiency(curHeatUsed, curCoolingCap);
+        const curEff = Math.min(powerEff, coolingEff);
+
+        let spent = 0;
+        if (curEff < minEff) {
+          // Efficiency is low — buy capacity instead of servers
+          // Buy power if power is the bottleneck, cooling if cooling is
+          const resourceNeeded = powerEff <= coolingEff ? 'power' : 'cooling';
+          const candidates = CAPACITY_BUILDINGS.filter(
+            (b) => b.resource === resourceNeeded
+          );
+          // Find the most expensive affordable capacity building
+          for (let i = candidates.length - 1; i >= 0; i--) {
+            const b = candidates[i];
+            const owned = nextCapacity[b.id] ?? 0;
+            const cost = getCapacityBuildingCost(b, owned);
+            if (cost <= currentCredits - spent) {
+              nextCapacity = { ...nextCapacity, [b.id]: owned + 1 };
+              spent += cost;
+              break;
+            }
+          }
+        } else {
+          // Efficiency is healthy — buy a server
+          const affordableTiers = SERVER_TIERS.filter((t) => {
+            const owned = nextServers[t.id] ?? 0;
+            const cost = getServerCost(t, owned);
+            return cost <= currentCredits - spent && !t.buildTimeSeconds;
+          });
+          if (affordableTiers.length > 0) {
+            const best = affordableTiers[affordableTiers.length - 1]; // highest tier
+            const owned = nextServers[best.id] ?? 0;
+            const cost = getServerCost(best, owned);
+            nextServers = { ...nextServers, [best.id]: owned + 1 };
+            spent += cost;
+          }
         }
+        // Deduct total spent via incidentPenalty (it all goes through Math.max(0,...))
+        incidentPenalty += spent;
       }
     }
 
@@ -651,6 +698,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           researchPoints: get().researchPoints + rpGain,
           servers: { ...nextServers, [victim.id]: nextServers[victim.id] - 1 },
           gpus: nextGpus,
+          capacity: nextCapacity,
           regions: nextRegions,
           overclockEnabled: false,
           cronTickAccumulator: cronAccum,
@@ -670,6 +718,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       researchPoints: get().researchPoints + rpGain,
       servers: nextServers,
       gpus: nextGpus,
+      capacity: nextCapacity,
       regions: nextRegions,
       overclockEnabled: nextOverclock,
       cronTickAccumulator: cronAccum,

@@ -17,12 +17,12 @@ export const AGENT_TYPES: AgentType[] = [
   {
     id: 'devops_agent',
     name: 'DevOps Agent',
-    description: 'Auto-buys the best affordable server on a timer.',
+    description: 'Auto-buys servers and capacity on a timer. Keeps your infra balanced.',
     icon: '🤖',
     cost: 5_000_000,
     salaryPerSec: 50,
     effectDescription: (a) =>
-      `Buys a server every ${getDevOpsInterval(a)}s`,
+      `Every ${getDevOpsInterval(a)}s · min eff ${Math.round(getDevOpsMinEfficiency(a) * 100)}%`,
   },
   {
     id: 'cost_optimizer',
@@ -56,6 +56,14 @@ export const AGENT_TYPES: AgentType[] = [
 export function getDevOpsInterval(autonomy: number): number {
   // Autonomy 1 = every 30s, autonomy 10 = every 3s
   return Math.max(3, 33 - autonomy * 3);
+}
+
+/** DevOps Agent: minimum efficiency before it stops buying servers and buys capacity instead.
+ *  Low autonomy = only buys when efficiency is high (90%+).
+ *  High autonomy = tolerates efficiency dropping to 50%. */
+export function getDevOpsMinEfficiency(autonomy: number): number {
+  // Autonomy 1 = 0.90, autonomy 10 = 0.50
+  return Math.max(0.50, 0.94 - autonomy * 0.044);
 }
 
 /** Incident Responder: seconds delay before auto-resolve */

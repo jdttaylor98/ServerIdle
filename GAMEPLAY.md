@@ -370,7 +370,7 @@ The meta-joke payoff: your AI does the clicking for you. Agents unlock once you 
 
 | Agent | Hire cost | Salary | Effect |
 |---|---|---|---|
-| 🤖 DevOps Agent | 5M cr | 50/sec | Auto-buys the best affordable server on a timer |
+| 🤖 DevOps Agent | 5M cr | 50/sec | Auto-buys servers and capacity to keep infra balanced |
 | 📊 Cost Optimizer | 3M cr | 30/sec | Auto-manages overclock based on risk tolerance |
 | 🚀 Incident Responder | 8M cr | 80/sec | Auto-resolves incidents for a reduced reward |
 
@@ -378,7 +378,7 @@ The meta-joke payoff: your AI does the clicking for you. Agents unlock once you 
 
 A global slider that affects all agents. Higher autonomy = more aggressive behavior, more risk.
 
-- **DevOps Agent:** Buy interval scales from 30s (autonomy 1) to 3s (autonomy 10). High autonomy may buy servers you can't power.
+- **DevOps Agent:** Buy interval scales from 30s (autonomy 1) to 3s (autonomy 10). Checks efficiency before buying — if efficiency drops below threshold (90% at low autonomy, 50% at high), buys power or cooling capacity instead of servers. Picks the bottleneck (power vs cooling) and buys the best affordable building for it.
 - **Cost Optimizer:** At low autonomy, only enables overclock with Redundant PSU + SRE protection. At high autonomy, leaves overclock on aggressively.
 - **Incident Responder:** Response delay scales from 8s (autonomy 1) to 1s (autonomy 10). Reward scales from 75% (autonomy 1) to 30% (autonomy 10) of normal — faster resolution costs you more of the bonus.
 
