@@ -124,7 +124,7 @@ So your first Rack costs effectively `$2,250` (Rack + PDU + AC Unit). Pays back 
 |---|---|---|
 | Rack PDU | 2,000 | +500W power capacity |
 | Load Balancing | 8,000 | Rack output ×1.25 |
-| Hot Swap | 25,000 | Overclock failures lose 0 units (req: Load Balancing) |
+| Redundant PSU | 25,000 | Overclock failure chance −50% (req: Load Balancing) |
 | Blade Chassis | 50,000 | Blade output ×1.25 |
 
 ---
@@ -159,11 +159,11 @@ Once you own at least one server (or cluster), random incidents fire roughly **1
 
 | Incident | Effect while active | Resolve | Reward / Penalty |
 |---|---|---|---|
-| 🛑 **DDoS Attack** | 0.5× output globally (30s timer) | Tap **MITIGATE** 3 times | Resolve: +30s of cps · Timeout: −60s of cps |
-| 💾 **Disk Full** | 0.5× output globally (45s timer) | Tap **CLEAR DISK** once | Resolve: +15s of cps · Timeout: just expires |
-| 💰 **Vendor Offer** | No effect (60s timer) | Tap **ACCEPT 50% OFF** | Banks a 50% discount on your next server purchase |
-| 🧠 **Memory Leak** | Output decays from 1.0× → 0.5× over 30s, floors at 0.25× (60s timer) | Tap **RESTART SERVICE** | Resolve: +20s of cps · Timeout: just expires |
-| 🚨 **Hacker Breach** | 0.7× output (12s timer) — **minigame** | Tap 4 letter buttons in the displayed order | Resolve: +90s of cps · Timeout: −5% of total credits |
+| 🛑 **DDoS Attack** | 0.5× output globally (15s timer) | Tap **MITIGATE** 3 times | Resolve: +30s of cps · Timeout: −120s of cps |
+| 💾 **Disk Full** | 0.5× output globally (20s timer) | Tap **CLEAR DISK** once | Resolve: +15s of cps · Timeout: −30s of cps |
+| 💰 **Vendor Offer** | No effect (30s timer) | Tap **ACCEPT 50% OFF** | Banks a 50% discount on your next server purchase |
+| 🧠 **Memory Leak** | Output decays from 1.0× → 0.5× over 15s, floors at 0.25× (30s timer) | Tap **RESTART SERVICE** | Resolve: +20s of cps · Timeout: −2% of total credits |
+| 🚨 **Hacker Breach** | 0.7× output (12s timer) — **minigame** | Tap 4 letter buttons in the displayed order | Resolve: +90s of cps · Timeout: −10% of total credits |
 
 **Hacker Breach minigame:** the banner shows a 4-letter sequence and 4 randomly-positioned letter buttons. Tap the buttons in the sequence order. A wrong tap resets your progress to step 0. Security Engineers reduce hacker breach trigger rate (same protection as for DDoS).
 
@@ -182,7 +182,7 @@ Once you've got a few Racks, the **OVERCLOCK** button becomes interesting:
 - Average failure interval: ~3.3 minutes
 - On failure: overclock auto-disables, FailureNotice modal pops
 
-**Hot Swap upgrade (25k cr)** flips this entirely — failures stop destroying units. Overclock becomes free output. This is the first major "broken-feeling" moment — exactly the idle game payoff curve.
+**Redundant PSU upgrade (25k cr)** cuts overclock failure chance in half (0.25% per tick instead of 0.5%). Still risky, but makes overclock a viable long-term strategy. SRE hires stack on top — between both you can push failure chance very low.
 
 ---
 
@@ -315,7 +315,7 @@ Once you've:
 - Bought every Homelab + Rack era upgrade
 - Stacked Blades to your heart's content
 - Maxed out Industrial HVAC for cooling
-- Toggled overclock with Hot Swap on (free +50%)
+- Running overclock with Redundant PSU + SRE hires for reduced failure risk
 
 … you've hit the current end of content. Numbers will keep growing, but no new mechanics unlock.
 
@@ -427,7 +427,7 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 |---|---|---|---|
 | Rack PDU | 2,000 | — | +500W power capacity |
 | Load Balancing | 8,000 | — | Rack output ×1.25 |
-| Hot Swap | 25,000 | Load Balancing | Overclock failures lose 0 units |
+| Redundant PSU | 25,000 | Load Balancing | Overclock failure chance −50% |
 | Rack Clustering | 30,000 | Load Balancing | Unlock Rack Cluster tier |
 | Blade Chassis | 50,000 | — | Blade output ×1.25 |
 

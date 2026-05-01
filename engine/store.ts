@@ -57,12 +57,20 @@ import {
   getOwnedRegionsCost,
 } from './regions';
 import {
+  GPU_TIERS,
+  getGpuCost,
+  getTotalGpuOutput,
+  getTotalGpuRpOutput,
+  getTotalGpuPower,
+  getTotalGpuHeat,
+} from './gpus';
+import {
   UPGRADES,
   isUpgradeAvailable,
   getClickCreditBonus,
   getClickCreditMultiplier,
   getServerOutputMultiplier,
-  getOverclockFailureLost,
+  getOverclockFailureChanceMultiplier,
   hasCronJobs,
   getBonusPowerCapacity,
 } from './upgrades';
@@ -86,6 +94,7 @@ export interface GameState {
   researchPoints: number;
   servers: Record<string, number>;
   clusters: Record<string, number>; // cluster type id -> count
+  gpus: Record<string, number>; // gpu tier id -> count
   capacity: Record<string, number>; // capacity building id -> count
   upgrades: Record<string, boolean>; // upgrade id -> purchased
   research: Record<string, boolean>; // research node id -> purchased
@@ -93,7 +102,7 @@ export interface GameState {
   staff: Record<string, number>; // role id -> count hired
   totalStaffEverHired: number; // cumulative count for "hire 10 staff" gate
   activeBuild: {
-    kind: 'server' | 'region';
+    kind: 'server' | 'region' | 'gpu';
     id: string;
     startedAt: number;
     completesAt: number;
@@ -134,6 +143,8 @@ export interface GameState {
   tapProvision: () => void;
   buyServer: (tierId: string) => void;
   sellServer: (tierId: string) => void;
+  buyGpu: (tierId: string) => void;
+  sellGpu: (tierId: string) => void;
   buyRegion: (regionId: string) => void;
   sellRegion: (regionId: string) => void;
   cancelBuild: () => void;
@@ -167,6 +178,7 @@ interface SaveData {
   researchPoints: number;
   servers: Record<string, number>;
   clusters: Record<string, number>;
+  gpus: Record<string, number>;
   capacity: Record<string, number>;
   upgrades: Record<string, boolean>;
   research: Record<string, boolean>;
@@ -186,6 +198,7 @@ interface SaveData {
 function calcCreditsPerSec(
   servers: Record<string, number>,
   clusters: Record<string, number>,
+  gpus: Record<string, number>,
   capacity: Record<string, number>,
   upgrades: Record<string, boolean>,
   staff: Record<string, number>,
@@ -206,12 +219,13 @@ function calcCreditsPerSec(
   );
 
   const regionsOutput = getOwnedRegionsOutput(regions);
+  const gpuOutput = getTotalGpuOutput(gpus);
 
   const staffMult = getStaffOutputMultiplier(staff);
   const researchMult = getResearchOutputMultiplier(research);
   const baseOutput =
     BASE_CREDITS_PER_SEC +
-    (serverOutput + clusterOutput + regionsOutput) * staffMult * researchMult;
+    (serverOutput + clusterOutput + regionsOutput + gpuOutput) * staffMult * researchMult;
   const overclockMult = overclockEnabled ? OVERCLOCK_MULTIPLIER : 1;
 
   const powerDrawMult = getResearchPowerDrawMultiplier(research);
@@ -219,12 +233,14 @@ function calcCreditsPerSec(
   const totalPower =
     (getTotalPowerDraw(servers) +
       getTotalClusterPower(clusters) +
-      getOwnedRegionsPower(regions)) *
+      getOwnedRegionsPower(regions) +
+      getTotalGpuPower(gpus)) *
     powerDrawMult;
   const totalHeat =
     getTotalHeatOutput(servers) +
     getTotalClusterHeat(clusters) +
-    getOwnedRegionsHeat(regions);
+    getOwnedRegionsHeat(regions) +
+    getTotalGpuHeat(gpus);
 
   const powerCap =
     getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
@@ -244,6 +260,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   researchPoints: 0,
   servers: {},
   clusters: {},
+  gpus: {},
   capacity: {},
   upgrades: {},
   research: {},
@@ -265,10 +282,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   hydrated: false,
 
   getCreditsPerSec: () => {
-    const { servers, clusters, capacity, upgrades, staff, research, regions, overclockEnabled, activeIncident } = get();
+    const { servers, clusters, gpus, capacity, upgrades, staff, research, regions, overclockEnabled, activeIncident } = get();
     return calcCreditsPerSec(
       servers,
       clusters,
+      gpus,
       capacity,
       upgrades,
       staff,
@@ -313,12 +331,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   getPowerStats: () => {
-    const { servers, clusters, capacity, upgrades, research, regions } = get();
+    const { servers, clusters, gpus, capacity, upgrades, research, regions } = get();
     const drawMult = getResearchPowerDrawMultiplier(research);
     const used =
       (getTotalPowerDraw(servers) +
         getTotalClusterPower(clusters) +
-        getOwnedRegionsPower(regions)) *
+        getOwnedRegionsPower(regions) +
+        getTotalGpuPower(gpus)) *
       drawMult;
     const cap =
       getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
@@ -326,11 +345,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   getCoolingStats: () => {
-    const { servers, clusters, capacity, research, regions } = get();
+    const { servers, clusters, gpus, capacity, research, regions } = get();
     const used =
       getTotalHeatOutput(servers) +
       getTotalClusterHeat(clusters) +
-      getOwnedRegionsHeat(regions);
+      getOwnedRegionsHeat(regions) +
+      getTotalGpuHeat(gpus);
     const cap =
       getTotalCapacity(capacity, 'cooling') *
       getResearchCoolingMultiplier(research);
@@ -338,19 +358,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   getEfficiencyMultiplier: () => {
-    const { servers, clusters, capacity, upgrades, research, regions } = get();
+    const { servers, clusters, gpus, capacity, upgrades, research, regions } = get();
     const powerCap =
       getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
     const drawMult = getResearchPowerDrawMultiplier(research);
     const totalPower =
       (getTotalPowerDraw(servers) +
         getTotalClusterPower(clusters) +
-        getOwnedRegionsPower(regions)) *
+        getOwnedRegionsPower(regions) +
+        getTotalGpuPower(gpus)) *
       drawMult;
     const totalHeat =
       getTotalHeatOutput(servers) +
       getTotalClusterHeat(clusters) +
-      getOwnedRegionsHeat(regions);
+      getOwnedRegionsHeat(regions) +
+      getTotalGpuHeat(gpus);
     const powerEff = getEfficiency(totalPower, powerCap);
     const coolingEff = getEfficiency(
       totalHeat,
@@ -365,6 +387,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       credits,
       servers,
       clusters,
+      gpus,
       capacity,
       upgrades,
       staff,
@@ -379,11 +402,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     // ─── Build queue completion ───
     let nextServers = servers;
     let nextRegions = regions;
+    let nextGpus = gpus;
     let nextActiveBuild = activeBuild;
     if (activeBuild && Date.now() >= activeBuild.completesAt) {
       if (activeBuild.kind === 'server') {
         const owned = servers[activeBuild.id] ?? 0;
         nextServers = { ...servers, [activeBuild.id]: owned + 1 };
+      } else if (activeBuild.kind === 'gpu') {
+        const owned = gpus[activeBuild.id] ?? 0;
+        nextGpus = { ...gpus, [activeBuild.id]: owned + 1 };
       } else {
         nextRegions = { ...regions, [activeBuild.id]: true };
       }
@@ -396,7 +423,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     let incidentResolution: GameState['lastIncidentResolution'] = null;
     if (nextIncident && Date.now() >= nextIncident.expiresAt) {
       // Timed out
-      const baseCps = calcCreditsPerSec(nextServers, clusters, capacity, upgrades, staff, research, nextRegions, false, null);
+      const baseCps = calcCreditsPerSec(nextServers, clusters, nextGpus, capacity, upgrades, staff, research, nextRegions, false, null);
       if (nextIncident.type === 'ddos') {
         incidentPenalty = baseCps * INCIDENT_CONFIG.ddos.timeoutPenaltySecondsOfCps;
         incidentResolution = {
@@ -405,8 +432,24 @@ export const useGameStore = create<GameState>((set, get) => ({
           rewardCredits: 0,
           penaltyCredits: incidentPenalty,
         };
+      } else if (nextIncident.type === 'disk_full') {
+        incidentPenalty = baseCps * INCIDENT_CONFIG.disk_full.timeoutPenaltySecondsOfCps;
+        incidentResolution = {
+          type: 'disk_full',
+          success: false,
+          rewardCredits: 0,
+          penaltyCredits: incidentPenalty,
+        };
+      } else if (nextIncident.type === 'memory_leak') {
+        incidentPenalty = credits * INCIDENT_CONFIG.memory_leak.timeoutCreditPercent;
+        incidentResolution = {
+          type: 'memory_leak',
+          success: false,
+          rewardCredits: 0,
+          penaltyCredits: incidentPenalty,
+        };
       } else if (nextIncident.type === 'hacker_breach') {
-        // Lose 5% of total credits on missed hack
+        // Lose 10% of total credits on missed hack
         incidentPenalty = credits * INCIDENT_CONFIG.hacker_breach.timeoutCreditPercent;
         incidentResolution = {
           type: 'hacker_breach',
@@ -415,7 +458,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           penaltyCredits: incidentPenalty,
         };
       } else {
-        // disk_full, vendor_offer, memory_leak just expire silently
+        // vendor_offer just expires silently
         incidentResolution = {
           type: nextIncident.type,
           success: false,
@@ -441,6 +484,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const cps = calcCreditsPerSec(
       nextServers,
       clusters,
+      nextGpus,
       capacity,
       upgrades,
       staff,
@@ -455,9 +499,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const cloudCost = getOwnedRegionsCost(nextRegions);
     const totalDrain = salary + cloudCost;
 
-    // Research Points generated by Data Scientists, boosted by research nodes
+    // Research Points generated by Data Scientists + GPU hardware, boosted by research nodes
     const rpGain =
-      getResearchPointsPerSec(staff) * getResearchRpMultiplier(research);
+      (getResearchPointsPerSec(staff) + getTotalGpuRpOutput(nextGpus)) *
+      getResearchRpMultiplier(research);
 
     // Cron Jobs: auto-tap every 5 seconds if purchased
     let cronAccum = cronTickAccumulator + 1;
@@ -475,9 +520,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (overclockEnabled) {
       const totalServers = Object.values(nextServers).reduce((a, b) => a + b, 0);
       const failureChance =
-        OVERCLOCK_FAILURE_CHANCE * getOverclockFailureMultiplier(staff);
+        OVERCLOCK_FAILURE_CHANCE *
+        getOverclockFailureMultiplier(staff) *
+        getOverclockFailureChanceMultiplier(upgrades);
       if (totalServers > 0 && Math.random() < failureChance) {
-        const lost = getOverclockFailureLost(upgrades);
         const ownedTiers = SERVER_TIERS.filter(
           (t) => (nextServers[t.id] ?? 0) > 0
         );
@@ -486,16 +532,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         set({
           credits: Math.max(0, credits + cps + cronCredits - totalDrain - incidentPenalty),
           researchPoints: get().researchPoints + rpGain,
-          servers: lost
-            ? { ...nextServers, [victim.id]: nextServers[victim.id] - lost }
-            : nextServers,
+          servers: { ...nextServers, [victim.id]: nextServers[victim.id] - 1 },
+          gpus: nextGpus,
           regions: nextRegions,
           overclockEnabled: false,
           cronTickAccumulator: cronAccum,
           activeBuild: nextActiveBuild,
           activeIncident: nextIncident,
           lastIncidentResolution: incidentResolution,
-          lastFailure: { tierId: victim.id, lost },
+          lastFailure: { tierId: victim.id, lost: 1 },
         });
         return;
       }
@@ -505,6 +550,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       credits: Math.max(0, credits + cps + cronCredits - salary - incidentPenalty),
       researchPoints: get().researchPoints + rpGain,
       servers: nextServers,
+      gpus: nextGpus,
       regions: nextRegions,
       cronTickAccumulator: cronAccum,
       activeBuild: nextActiveBuild,
@@ -561,7 +607,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   cancelBuild: () => {
-    const { activeBuild, credits, servers } = get();
+    const { activeBuild, credits, servers, gpus } = get();
     if (!activeBuild) return;
 
     let refund = 0;
@@ -570,6 +616,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (tier) {
         const owned = servers[activeBuild.id] ?? 0;
         refund = Math.floor(getServerCost(tier, owned) * 0.5);
+      }
+    } else if (activeBuild.kind === 'gpu') {
+      const tier = GPU_TIERS.find((t) => t.id === activeBuild.id);
+      if (tier) {
+        const owned = gpus[activeBuild.id] ?? 0;
+        refund = Math.floor(getGpuCost(tier, owned) * 0.5);
       }
     } else {
       const region = CLOUD_REGIONS.find((r) => r.id === activeBuild.id);
@@ -594,6 +646,42 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       credits: credits + refund,
       servers: { ...servers, [tierId]: owned - 1 },
+    });
+  },
+
+  buyGpu: (tierId) => {
+    const { credits, gpus, activeBuild } = get();
+    const tier = GPU_TIERS.find((t) => t.id === tierId);
+    if (!tier) return;
+    if (activeBuild) return; // build slot occupied
+
+    const owned = gpus[tierId] ?? 0;
+    const cost = getGpuCost(tier, owned);
+    if (credits < cost) return;
+
+    const now = Date.now();
+    set({
+      credits: credits - cost,
+      activeBuild: {
+        kind: 'gpu',
+        id: tierId,
+        startedAt: now,
+        completesAt: now + tier.buildTimeSeconds * 1000,
+      },
+    });
+  },
+
+  sellGpu: (tierId) => {
+    const { credits, gpus } = get();
+    const tier = GPU_TIERS.find((t) => t.id === tierId);
+    if (!tier) return;
+    const owned = gpus[tierId] ?? 0;
+    if (owned <= 0) return;
+
+    const refund = Math.floor(getGpuCost(tier, owned - 1) * SELL_REFUND_RATIO);
+    set({
+      credits: credits + refund,
+      gpus: { ...gpus, [tierId]: owned - 1 },
     });
   },
 
@@ -770,7 +858,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // ─── Incident actions ───
   resolveIncident: () => {
     // Generic single-tap resolve (used by Disk Full and Memory Leak)
-    const { credits, activeIncident, servers, clusters, capacity, upgrades, staff, research, regions, diskFullResolvedCount } = get();
+    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, diskFullResolvedCount } = get();
     if (!activeIncident) return;
     if (
       activeIncident.type !== 'disk_full' &&
@@ -778,7 +866,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     )
       return;
 
-    const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, research, regions, false, null);
+    const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null);
     const config = INCIDENT_CONFIG[activeIncident.type];
     const reward = baseCps * config.rewardSecondsOfCps;
 
@@ -799,7 +887,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapDdosMitigate: () => {
-    const { credits, activeIncident, servers, clusters, capacity, upgrades, staff, research, regions, ddosResolvedCount } = get();
+    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, ddosResolvedCount } = get();
     if (!activeIncident || activeIncident.type !== 'ddos') return;
 
     const remaining = activeIncident.tapsRemaining - 1;
@@ -809,7 +897,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // Mitigation complete
-    const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, research, regions, false, null);
+    const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null);
     const reward = baseCps * INCIDENT_CONFIG.ddos.rewardSecondsOfCps;
     set({
       credits: credits + reward,
@@ -825,7 +913,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapHackerSequence: (letter: string) => {
-    const { credits, activeIncident, servers, clusters, capacity, upgrades, staff, research, regions } = get();
+    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions } = get();
     if (!activeIncident || activeIncident.type !== 'hacker_breach') return;
 
     const expectedLetter = activeIncident.sequence[activeIncident.currentStep];
@@ -833,7 +921,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const nextStep = activeIncident.currentStep + 1;
       if (nextStep >= activeIncident.sequence.length) {
         // Sequence complete — patched the breach
-        const baseCps = calcCreditsPerSec(servers, clusters, capacity, upgrades, staff, research, regions, false, null);
+        const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null);
         const reward = baseCps * INCIDENT_CONFIG.hacker_breach.rewardSecondsOfCps;
         set({
           credits: credits + reward,
@@ -881,12 +969,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   devSkipBuild: () => {
-    const { activeBuild, servers, regions } = get();
+    const { activeBuild, servers, gpus, regions } = get();
     if (!activeBuild) return;
     if (activeBuild.kind === 'server') {
       const owned = servers[activeBuild.id] ?? 0;
       set({
         servers: { ...servers, [activeBuild.id]: owned + 1 },
+        activeBuild: null,
+      });
+    } else if (activeBuild.kind === 'gpu') {
+      const owned = gpus[activeBuild.id] ?? 0;
+      set({
+        gpus: { ...gpus, [activeBuild.id]: owned + 1 },
         activeBuild: null,
       });
     } else {
@@ -908,6 +1002,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       researchPoints: 0,
       servers: {},
       clusters: {},
+      gpus: {},
       capacity: {},
       upgrades: {},
       research: {},
@@ -945,6 +1040,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       researchPoints,
       servers,
       clusters,
+      gpus,
       capacity,
       upgrades,
       research,
@@ -965,6 +1061,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       researchPoints,
       servers,
       clusters,
+      gpus,
       capacity,
       upgrades,
       research,
@@ -1002,6 +1099,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const savedUpgrades = data.upgrades ?? {};
     const savedResearch = data.research ?? {};
     const savedClusters = data.clusters ?? {};
+    const savedGpus = data.gpus ?? {};
     const savedRegions = data.regions ?? {};
     const savedStaff = data.staff ?? {};
     const savedVendorDiscount = data.vendorDiscountAvailable ?? false;
@@ -1012,12 +1110,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Build queue: complete it if its timer ran out while away
     let savedServers = data.servers ?? {};
+    let savedGpusLocal = savedGpus;
     let savedRegionsLocal = savedRegions;
     let savedBuild = data.activeBuild ?? null;
     if (savedBuild && now >= savedBuild.completesAt) {
       if (savedBuild.kind === 'server') {
         const owned = savedServers[savedBuild.id] ?? 0;
         savedServers = { ...savedServers, [savedBuild.id]: owned + 1 };
+      } else if (savedBuild.kind === 'gpu') {
+        const owned = savedGpusLocal[savedBuild.id] ?? 0;
+        savedGpusLocal = { ...savedGpusLocal, [savedBuild.id]: owned + 1 };
       } else {
         savedRegionsLocal = { ...savedRegionsLocal, [savedBuild.id]: true };
       }
@@ -1027,6 +1129,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const grossCps = calcCreditsPerSec(
       savedServers,
       savedClusters,
+      savedGpusLocal,
       data.capacity ?? {},
       savedUpgrades,
       savedStaff,
@@ -1042,9 +1145,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const totalPending = (data.pendingOfflineEarnings || 0) + newOffline;
 
     // Research points accumulate offline at full rate (no efficiency penalty —
-    // research isn't gated by power/cooling)
+    // research isn't gated by power/cooling) — includes GPU RP output
     const rpRate =
-      getResearchPointsPerSec(savedStaff) *
+      (getResearchPointsPerSec(savedStaff) + getTotalGpuRpOutput(savedGpusLocal)) *
       getResearchRpMultiplier(savedResearch);
     const rpGained = elapsedSec * rpRate;
     const totalRp = (data.researchPoints ?? 0) + rpGained;
@@ -1054,6 +1157,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       researchPoints: totalRp,
       servers: savedServers,
       clusters: savedClusters,
+      gpus: savedGpusLocal,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       research: savedResearch,
@@ -1077,6 +1181,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       researchPoints: totalRp,
       servers: savedServers,
       clusters: savedClusters,
+      gpus: savedGpusLocal,
       capacity: data.capacity ?? {},
       upgrades: savedUpgrades,
       research: savedResearch,

@@ -48,7 +48,7 @@ export const RESEARCH_NODES: ResearchNode[] = [
   {
     id: 'cuda_drivers',
     name: 'CUDA Drivers',
-    description: 'Reveals the GPU tier (Phase 6 preview — no effect yet)',
+    description: 'Unlock the GPU screen — build GPU Nodes and AI Clusters',
     cost: 1500,
     prereqs: ['power_optimization', 'smart_caching'],
   },

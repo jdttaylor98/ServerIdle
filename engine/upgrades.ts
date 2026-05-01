@@ -94,8 +94,8 @@ export const UPGRADES: Upgrade[] = [
   },
   {
     id: 'hot_swap',
-    name: 'Hot Swap',
-    description: 'Overclock failures lose 0 units instead of 1',
+    name: 'Redundant PSU',
+    description: 'Overclock failure chance reduced by 50%',
     era: 'rack',
     cost: 25000,
     prereqs: ['load_balancing'],
@@ -187,10 +187,10 @@ export function getServerOutputMultiplier(
   return mult;
 }
 
-export function getOverclockFailureLost(
+export function getOverclockFailureChanceMultiplier(
   purchased: Record<string, boolean>
 ): number {
-  return purchased['hot_swap'] ? 0 : 1;
+  return purchased['hot_swap'] ? 0.5 : 1;
 }
 
 export function hasCronJobs(purchased: Record<string, boolean>): boolean {

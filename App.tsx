@@ -23,9 +23,11 @@ import { CoolingScreen } from './components/CoolingScreen';
 import { StaffScreen } from './components/StaffScreen';
 import { ResearchScreen } from './components/ResearchScreen';
 import { CloudScreen } from './components/CloudScreen';
+import { GpuScreen } from './components/GpuScreen';
 import { isStaffNavVisible, getResearchPointsPerSec } from './engine/staff';
 import { isResearchNavVisible } from './engine/research';
 import { isCloudUnlocked } from './engine/regions';
+import { isGpuNavVisible, getTotalGpuOutput, getTotalGpuRpOutput } from './engine/gpus';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -47,7 +49,8 @@ type Screen =
   | 'cooling'
   | 'staff'
   | 'research'
-  | 'cloud';
+  | 'cloud'
+  | 'gpu';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -55,7 +58,9 @@ export default function App() {
   const getCreditsPerSec = useGameStore((state) => state.getCreditsPerSec);
   const overclockEnabled = useGameStore((state) => state.overclockEnabled);
   const upgrades = useGameStore((state) => state.upgrades);
+  const research = useGameStore((state) => state.research);
   const servers = useGameStore((state) => state.servers);
+  const gpus = useGameStore((state) => state.gpus);
   const regions = useGameStore((state) => state.regions);
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
@@ -163,6 +168,14 @@ export default function App() {
       </>
     );
   }
+  if (screen === 'gpu') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <GpuScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
 
   // Main dashboard
   const cps = getCreditsPerSec();
@@ -172,11 +185,15 @@ export default function App() {
   const netCps = cps - totalCosts;
   const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
   const showStaffNav = isStaffNavVisible(getGateState());
-  const rpPerSec = getResearchPointsPerSec(staff);
+  const staffRpPerSec = getResearchPointsPerSec(staff);
+  const gpuRpPerSec = getTotalGpuRpOutput(gpus);
+  const rpPerSec = staffRpPerSec + gpuRpPerSec;
   const researchLabOwned = getGateState().researchLabOwned;
   const showResearch = researchPoints > 0 || rpPerSec > 0 || researchLabOwned;
   const showResearchNav = isResearchNavVisible(researchLabOwned, researchPoints);
   const showCloudNav = isCloudUnlocked(upgrades);
+  const showGpuNav = isGpuNavVisible(research);
+  const totalGpuCount = Object.values(gpus).reduce((a, b) => a + b, 0);
   const ownedRegionCount = Object.values(regions).filter(Boolean).length;
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
@@ -320,6 +337,13 @@ export default function App() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.devButton}
+              onPress={() => addCredits(10_000_000)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devButtonText}>+10M</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.devButton}
               onPress={devSkipBuild}
               activeOpacity={0.7}
             >
@@ -427,6 +451,18 @@ export default function App() {
                   : 'Lease cloud regions'
               }
               onPress={() => setScreen('cloud')}
+            />
+          )}
+          {showGpuNav && (
+            <NavTile
+              icon="🎮"
+              label="GPU"
+              hint={
+                totalGpuCount > 0
+                  ? `${totalGpuCount} units · ${getTotalGpuOutput(gpus).toLocaleString()} cr/sec`
+                  : 'Build GPU hardware'
+              }
+              onPress={() => setScreen('gpu')}
             />
           )}
         </View>

@@ -37,36 +37,38 @@ export const INCIDENT_CONFIG = {
     name: 'DDoS Attack',
     icon: '🛑',
     description: 'Inbound flood is choking your servers. Mitigate fast.',
-    duration: 30, // seconds
+    duration: 15, // seconds (was 30)
     tapsRequired: 3,
     activeMultiplier: 0.5, // output while incident is live
     rewardSecondsOfCps: 30,
-    timeoutPenaltySecondsOfCps: 60,
+    timeoutPenaltySecondsOfCps: 120, // harsher (was 60)
   },
   disk_full: {
     name: 'Disk Full',
     icon: '💾',
     description: 'A runaway log filled the disk. Output is throttled.',
-    duration: 45,
+    duration: 20, // seconds (was 45)
     activeMultiplier: 0.5,
     rewardSecondsOfCps: 15,
+    timeoutPenaltySecondsOfCps: 30, // NEW — was silent
   },
   vendor_offer: {
     name: 'Vendor Offer',
     icon: '💰',
     description: 'Sales rep is offering 50% off your next server purchase.',
-    duration: 60,
+    duration: 30, // seconds (was 60)
     activeMultiplier: 1, // no penalty
   },
   memory_leak: {
     name: 'Memory Leak',
     icon: '🧠',
     description: 'A buggy service is leaking RAM. Output is degrading.',
-    duration: 60, // expires after 60s
-    decayDuration: 30, // takes 30s to decay from 1.0 to 0.5
+    duration: 30, // expires after 30s (was 60)
+    decayDuration: 15, // takes 15s to decay from 1.0 to 0.5 (was 30)
     minMultiplier: 0.25, // floor below the 0.5 mark
     activeMultiplier: 1, // base, but recomputed dynamically
     rewardSecondsOfCps: 20,
+    timeoutCreditPercent: 0.02, // NEW — lose 2% credits on timeout
   },
   hacker_breach: {
     name: 'Hacker Breach',
@@ -76,7 +78,7 @@ export const INCIDENT_CONFIG = {
     sequenceLength: 4,
     activeMultiplier: 0.7, // mild output penalty while active
     rewardSecondsOfCps: 90,
-    timeoutCreditPercent: 0.05, // lose 5% of credits on timeout
+    timeoutCreditPercent: 0.10, // harsher (was 0.05)
   },
 } as const;
 
