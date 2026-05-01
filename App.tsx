@@ -86,16 +86,27 @@ export default function App() {
   const confirmReset = () => {
     Alert.alert(
       'Reset Game?',
-      'This wipes all credits, servers, upgrades, staff, regions, and research. Cannot be undone.',
+      'This wipes ALL progress — credits, servers, upgrades, prestige, skill tree, everything. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Delete Everything',
           style: 'destructive',
           onPress: () => {
             devResetGame();
           },
         },
+      ]
+    );
+  };
+
+  const showSettings = () => {
+    Alert.alert(
+      'Settings',
+      undefined,
+      [
+        { text: 'Reset All Progress', style: 'destructive', onPress: confirmReset },
+        { text: 'Close', style: 'cancel' },
       ]
     );
   };
@@ -110,6 +121,9 @@ export default function App() {
 
   const [showWelcome, setShowWelcome] = useState(false);
   const [screen, setScreen] = useState<Screen>('main');
+  const [devMode, setDevMode] = useState(false);
+  const devTapCount = useRef(0);
+  const devTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasLoaded = useRef(false);
 
   useTicker();
@@ -268,13 +282,34 @@ export default function App() {
       <IncidentToast />
 
       <View style={styles.topBar}>
-        <Text style={styles.title}>SERVER IDLE</Text>
         <TouchableOpacity
-          onPress={() => setScreen('upgrades')}
-          style={styles.upgradesButton}
+          activeOpacity={1}
+          onPress={() => {
+            devTapCount.current += 1;
+            if (devTapTimer.current) clearTimeout(devTapTimer.current);
+            devTapTimer.current = setTimeout(() => { devTapCount.current = 0; }, 2000);
+            if (devTapCount.current >= 5) {
+              setDevMode((prev) => !prev);
+              devTapCount.current = 0;
+            }
+          }}
         >
-          <Text style={styles.upgradesText}>UPGRADES →</Text>
+          <Text style={styles.title}>SERVER IDLE</Text>
         </TouchableOpacity>
+        <View style={styles.topBarRight}>
+          <TouchableOpacity
+            onPress={() => setScreen('upgrades')}
+            style={styles.upgradesButton}
+          >
+            <Text style={styles.upgradesText}>UPGRADES →</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={showSettings}
+            style={styles.settingsButton}
+          >
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -351,6 +386,15 @@ export default function App() {
           />
         </View>
 
+        {/* Onboarding hint for new players */}
+        {totalServers === 0 && credits < 10 && (
+          <View style={styles.onboardingHint}>
+            <Text style={styles.onboardingText}>
+              Tap PROVISION to earn credits, then buy your first server below.
+            </Text>
+          </View>
+        )}
+
         {/* Action buttons */}
         <TouchableOpacity
           style={styles.clickButton}
@@ -366,8 +410,8 @@ export default function App() {
 
         <OverclockToggle />
 
-        {/* DEV — remove before ship */}
-        <View style={styles.devPanel}>
+        {/* DEV — hidden behind 5-tap on title */}
+        {devMode && <View style={styles.devPanel}>
           <Text style={styles.devLabel}>DEV TOOLS</Text>
           <View style={styles.devRow}>
             <TouchableOpacity
@@ -447,7 +491,7 @@ export default function App() {
               <Text style={styles.devButtonText}>🚨 Hack</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </View>}
 
         {/* Drill-down nav */}
         <View style={styles.navSection}>
@@ -576,6 +620,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 3,
   },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   upgradesButton: {
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -588,6 +637,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
     letterSpacing: 1,
+  },
+  settingsButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  settingsIcon: {
+    fontSize: 18,
   },
   scroll: {
     flex: 1,
@@ -699,6 +755,22 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 11,
     marginTop: 2,
+  },
+  onboardingHint: {
+    backgroundColor: '#0a1a0a',
+    borderColor: '#00ff88',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+    alignItems: 'center',
+  },
+  onboardingText: {
+    color: '#00ff88',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   navSection: {
     marginTop: 14,
