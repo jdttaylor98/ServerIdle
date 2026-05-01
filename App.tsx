@@ -84,6 +84,7 @@ export default function App() {
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const staff = useGameStore((state) => state.staff);
   const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
+  const getCloudOperatingCost = useGameStore((state) => state.getCloudOperatingCost);
   const getGateState = useGameStore((state) => state.getGateState);
   const loadGame = useGameStore((state) => state.loadGame);
   const collectOfflineEarnings = useGameStore((state) => state.collectOfflineEarnings);
@@ -166,7 +167,9 @@ export default function App() {
   // Main dashboard
   const cps = getCreditsPerSec();
   const salary = getTotalSalaryFn();
-  const netCps = cps - salary;
+  const cloudCost = getCloudOperatingCost();
+  const totalCosts = salary + cloudCost;
+  const netCps = cps - totalCosts;
   const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
   const showStaffNav = isStaffNavVisible(getGateState());
   const rpPerSec = getResearchPointsPerSec(staff);
@@ -229,9 +232,18 @@ export default function App() {
           <Text style={[styles.perSec, overclockEnabled && styles.perSecBoosted]}>
             {cps.toFixed(1)} / sec {overclockEnabled ? '⚡' : ''}
           </Text>
-          {salary > 0 && (
+          {totalCosts > 0 && (
             <View style={styles.netRow}>
-              <Text style={styles.salaryLine}>− {salary.toFixed(1)} payroll</Text>
+              {salary > 0 && (
+                <Text style={styles.salaryLine}>
+                  − {salary.toFixed(1)} payroll
+                </Text>
+              )}
+              {cloudCost > 0 && (
+                <Text style={styles.salaryLine}>
+                  − {cloudCost.toLocaleString()} cloud ops
+                </Text>
+              )}
               <Text
                 style={[
                   styles.netLine,

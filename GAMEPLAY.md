@@ -220,18 +220,27 @@ A new infrastructure category alongside servers and clusters. **Cloud regions** 
 
 To unlock: own 1 Data Center → buy the **Multi-Region Deployment** upgrade (1M cr) in the Data Center upgrade era → the **🌐 CLOUD** nav tile appears.
 
-| Region | Lease cost | Output | Build time | Power | Heat |
-|---|---|---|---|---|---|
-| US-East | 1M cr | 1,500 cr/sec | 3 min | 8,000W | 12,000 BTU |
-| EU-West | 2.5M cr | 3,500 cr/sec | 5 min | 12,000W | 18,000 BTU |
-| AP-South | 5M cr | 7,000 cr/sec | 8 min | 18,000W | 27,000 BTU |
-| Edge Network | 12M cr | 15,000 cr/sec | 12 min | 25,000W | 37,500 BTU |
+| Region | Lease cost | Output | Ops cost | Net | Build time | Power | Heat |
+|---|---|---|---|---|---|---|---|
+| US-East | 1M cr | 1,500/sec | −300/sec | **+1,200/sec** | 3 min | 8,000W | 12,000 BTU |
+| EU-West | 2.5M cr | 3,500/sec | −875/sec | **+2,625/sec** | 5 min | 12,000W | 18,000 BTU |
+| AP-South | 5M cr | 7,000/sec | −1,750/sec | **+5,250/sec** | 8 min | 18,000W | 27,000 BTU |
+| Edge Network | 12M cr | 15,000/sec | −4,500/sec | **+10,500/sec** | 12 min | 25,000W | 37,500 BTU |
 
-Owning all four = **+27,000 cr/sec** plain — comparable to dozens of Blade clusters with significantly less floor space invested.
+Owning all four nets **+19,575 cr/sec** after ops costs (gross 27,000 − costs 7,425).
 
-Decommission a region for a 50% refund (a one-time setback rather than a regret).
+**Service costs** drain credits every second the region is leased — they sit alongside staff salaries on the dashboard breakdown:
 
-(Phase 5d will introduce **ongoing service costs** for cloud regions, making net income vs. payroll a real strategic concern.)
+```
+   25,500 / sec (gross)
+ −     12.5 payroll
+ −  7,425   cloud ops
+ = 18,062.5 net
+```
+
+Net cps floors at 0 (you won't go negative). Costs apply offline as well, so leaving a region online while away is the same tradeoff as staff salaries.
+
+Decommission a region for a 50% refund (a one-time setback rather than a regret) — and the ongoing cost stops immediately.
 
 ## Build queues
 
@@ -348,11 +357,11 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 - ~~Staff system (DevOps, Security, SysAdmin, SRE, Sales, Manager)~~ ✅ shipped
 - **Data Scientist** role and **Auto-provisioner upgrades** deferred to after Phase 5
 
-### Phase 5 — Data Center & Cloud
+### Phase 5 — Data Center & Cloud ✅ COMPLETE
 - ~~Data Center tier with real-time build timers~~ ✅ shipped (Phase 5a)
 - ~~Research Points + Data Scientist staff role~~ ✅ shipped (Phase 5b)
 - ~~Multi-region cloud~~ ✅ shipped (Phase 5c)
-- **Service cost layer:** ongoing per-second costs for regions, net income tightening (Phase 5d — next)
+- ~~Service cost layer~~ ✅ shipped (Phase 5d)
 
 ### Phase 6 — AI Endgame & Prestige
 - **GPU hardware** tier (power-hungry, generates Research Points)
