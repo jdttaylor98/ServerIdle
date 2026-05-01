@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useGameStore } from './engine/store';
@@ -62,6 +63,24 @@ export default function App() {
   const devTriggerIncident = useGameStore((state) => state.devTriggerIncident);
   const devSkipBuild = useGameStore((state) => state.devSkipBuild);
   const devAddResearchPoints = useGameStore((state) => state.devAddResearchPoints);
+  const devResetGame = useGameStore((state) => state.devResetGame);
+
+  const confirmReset = () => {
+    Alert.alert(
+      'Reset Game?',
+      'This wipes all credits, servers, upgrades, staff, regions, and research. Cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            devResetGame();
+          },
+        },
+      ]
+    );
+  };
   const vendorDiscountAvailable = useGameStore((state) => state.vendorDiscountAvailable);
   const staff = useGameStore((state) => state.staff);
   const getTotalSalaryFn = useGameStore((state) => state.getTotalSalary);
@@ -300,6 +319,13 @@ export default function App() {
               activeOpacity={0.7}
             >
               <Text style={styles.devButtonText}>+100 RP</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.devButton, styles.devButtonDanger]}
+              onPress={confirmReset}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devButtonDangerText}>RESET</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.devRow}>
@@ -590,6 +616,15 @@ const styles = StyleSheet.create({
   },
   devButtonText: {
     color: '#ffaa44',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  devButtonDanger: {
+    backgroundColor: '#3a0d18',
+  },
+  devButtonDangerText: {
+    color: '#ff7799',
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 1,

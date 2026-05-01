@@ -6,7 +6,8 @@ export interface CloudRegion {
   name: string;
   description: string;
   cost: number;
-  output: number; // cr/sec
+  output: number; // cr/sec gross
+  operatingCost: number; // cr/sec drain while leased
   powerDraw: number; // W
   heatOutput: number; // BTU
   buildTimeSeconds: number;
@@ -19,6 +20,7 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     description: 'Cheap, common, somehow always on fire.',
     cost: 1_000_000,
     output: 1_500,
+    operatingCost: 300,
     powerDraw: 8_000,
     heatOutput: 12_000,
     buildTimeSeconds: 180, // 3 min
@@ -29,6 +31,7 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     description: 'GDPR-compliant. Pricier in every sense.',
     cost: 2_500_000,
     output: 3_500,
+    operatingCost: 875,
     powerDraw: 12_000,
     heatOutput: 18_000,
     buildTimeSeconds: 300, // 5 min
@@ -39,6 +42,7 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     description: 'Latency to half the world. Worth it.',
     cost: 5_000_000,
     output: 7_000,
+    operatingCost: 1_750,
     powerDraw: 18_000,
     heatOutput: 27_000,
     buildTimeSeconds: 480, // 8 min
@@ -49,6 +53,7 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     description: 'Tiny PoPs in 50 cities. Latency: yes.',
     cost: 12_000_000,
     output: 15_000,
+    operatingCost: 4_500,
     powerDraw: 25_000,
     heatOutput: 37_500,
     buildTimeSeconds: 720, // 12 min
@@ -78,5 +83,11 @@ export function getOwnedRegionsPower(
 export function getOwnedRegionsHeat(regions: Record<string, boolean>): number {
   return CLOUD_REGIONS.reduce((sum, r) => {
     return sum + (regions[r.id] ? r.heatOutput : 0);
+  }, 0);
+}
+
+export function getOwnedRegionsCost(regions: Record<string, boolean>): number {
+  return CLOUD_REGIONS.reduce((sum, r) => {
+    return sum + (regions[r.id] ? r.operatingCost : 0);
   }, 0);
 }

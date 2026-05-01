@@ -38,7 +38,13 @@ export function RegionRow({ region }: Props) {
         </View>
         <Text style={styles.description}>{region.description}</Text>
         <Text style={styles.output}>
-          {region.output.toLocaleString()} cr/sec
+          +{region.output.toLocaleString()} cr/sec
+        </Text>
+        <Text style={styles.opsCost}>
+          −{region.operatingCost.toLocaleString()} cr/sec ops cost
+        </Text>
+        <Text style={styles.netLine}>
+          = {(region.output - region.operatingCost).toLocaleString()} net cr/sec
         </Text>
         <Text style={styles.consumption}>
           {region.powerDraw.toLocaleString()}W ·{' '}
@@ -177,6 +183,17 @@ const styles = StyleSheet.create({
     color: '#00ff88',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  opsCost: {
+    color: '#ff7755',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  netLine: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginTop: 2,
   },
   consumption: {
     color: '#555',
