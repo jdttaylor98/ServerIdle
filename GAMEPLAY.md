@@ -222,10 +222,10 @@ To unlock: own 1 Data Center → buy the **Multi-Region Deployment** upgrade (1M
 
 | Region | Lease cost | Output | Ops cost | Net | Build time | Power | Heat |
 |---|---|---|---|---|---|---|---|
-| US-East | 1M cr | 1,500/sec | −300/sec | **+1,200/sec** | 3 min | 8,000W | 12,000 BTU |
-| EU-West | 2.5M cr | 3,500/sec | −875/sec | **+2,625/sec** | 5 min | 12,000W | 18,000 BTU |
-| AP-South | 5M cr | 7,000/sec | −1,750/sec | **+5,250/sec** | 8 min | 18,000W | 27,000 BTU |
-| Edge Network | 12M cr | 15,000/sec | −4,500/sec | **+10,500/sec** | 12 min | 25,000W | 37,500 BTU |
+| Edge Network | 1M cr | 1,500/sec | −300/sec | **+1,200/sec** | 3 min | 8,000W | 12,000 BTU |
+| AP-South | 2.5M cr | 3,500/sec | −875/sec | **+2,625/sec** | 5 min | 12,000W | 18,000 BTU |
+| EU-West | 5M cr | 7,000/sec | −1,750/sec | **+5,250/sec** | 8 min | 18,000W | 27,000 BTU |
+| US-East | 12M cr | 15,000/sec | −4,500/sec | **+10,500/sec** | 12 min | 25,000W | 37,500 BTU |
 
 Owning all four nets **+19,575 cr/sec** after ops costs (gross 27,000 − costs 7,425).
 

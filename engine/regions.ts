@@ -15,9 +15,9 @@ export interface CloudRegion {
 
 export const CLOUD_REGIONS: CloudRegion[] = [
   {
-    id: 'us_east',
-    name: 'US-East',
-    description: 'Cheap, common, somehow always on fire.',
+    id: 'edge_network',
+    name: 'Edge Network',
+    description: 'Tiny PoPs in 50 cities. Latency: yes.',
     cost: 1_000_000,
     output: 1_500,
     operatingCost: 300,
@@ -26,9 +26,9 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     buildTimeSeconds: 180, // 3 min
   },
   {
-    id: 'eu_west',
-    name: 'EU-West',
-    description: 'GDPR-compliant. Pricier in every sense.',
+    id: 'ap_south',
+    name: 'AP-South',
+    description: 'Latency to half the world. Worth it.',
     cost: 2_500_000,
     output: 3_500,
     operatingCost: 875,
@@ -37,9 +37,9 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     buildTimeSeconds: 300, // 5 min
   },
   {
-    id: 'ap_south',
-    name: 'AP-South',
-    description: 'Latency to half the world. Worth it.',
+    id: 'eu_west',
+    name: 'EU-West',
+    description: 'GDPR-compliant. Pricier in every sense.',
     cost: 5_000_000,
     output: 7_000,
     operatingCost: 1_750,
@@ -48,9 +48,9 @@ export const CLOUD_REGIONS: CloudRegion[] = [
     buildTimeSeconds: 480, // 8 min
   },
   {
-    id: 'edge_network',
-    name: 'Edge Network',
-    description: 'Tiny PoPs in 50 cities. Latency: yes.',
+    id: 'us_east',
+    name: 'US-East',
+    description: 'The big one. Everyone wants us-east-1.',
     cost: 12_000_000,
     output: 15_000,
     operatingCost: 4_500,
