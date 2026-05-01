@@ -51,6 +51,8 @@ The game is split across a main dashboard and four drill-down screens, all acces
 | **Staff** | Hire/fire IT roles with passive effects + ongoing salaries |
 | **Research** | Spend Research Points on permanent in-run buffs |
 | **Cloud** | Lease cloud regions (one of each) — unlocked via Multi-Region Deployment upgrade |
+| **GPU** | Build GPU Nodes and AI Clusters — unlocked via CUDA Drivers research |
+| **AI Agents** | Hire AI agents with autonomy slider — unlocked by owning 1+ GPU Node |
 | **Upgrades** | Tree-view of unlockable upgrades organized by era |
 
 Mini meters on the dashboard always show real-time power/cooling usage so you can spot overload at a glance.
@@ -347,6 +349,43 @@ If you close *without* collecting, the pending amount sticks around — reopenin
 
 ---
 
+## GPU Hardware (Phase 6a)
+
+A new hardware category that generates both credits AND Research Points. Unlocked by the **CUDA Drivers** research node (1500 RP, requires Power Optimization + Smart Caching).
+
+| Tier | Cost | Credits/sec | RP/sec | Power | Heat | Build time |
+|---|---|---|---|---|---|---|
+| GPU Node | 2M cr | 800/sec | 0.5/sec | 15,000W | 22,000 BTU | 3 min |
+| AI Cluster | 25M cr | 5,000/sec | 3.0/sec | 60,000W | 90,000 BTU | 10 min |
+
+AI Cluster reveals after owning 3 GPU Nodes. Both share the global build queue. Extremely power-hungry — expect to invest heavily in Generators and Industrial HVAC.
+
+GPU RP output stacks with Data Scientist RP and the Distributed Computing research multiplier.
+
+---
+
+## AI Agents (Phase 6b)
+
+The meta-joke payoff: your AI does the clicking for you. Agents unlock once you own at least 1 GPU Node.
+
+| Agent | Hire cost | Salary | Effect |
+|---|---|---|---|
+| 🤖 DevOps Agent | 5M cr | 50/sec | Auto-buys the best affordable server on a timer |
+| 📊 Cost Optimizer | 3M cr | 30/sec | Auto-manages overclock based on risk tolerance |
+| 🚀 Incident Responder | 8M cr | 80/sec | Auto-resolves incidents for a reduced reward |
+
+### Autonomy slider (1–10)
+
+A global slider that affects all agents. Higher autonomy = more aggressive behavior, more risk.
+
+- **DevOps Agent:** Buy interval scales from 30s (autonomy 1) to 3s (autonomy 10). High autonomy may buy servers you can't power.
+- **Cost Optimizer:** At low autonomy, only enables overclock with Redundant PSU + SRE protection. At high autonomy, leaves overclock on aggressively.
+- **Incident Responder:** Response delay scales from 8s (autonomy 1) to 1s (autonomy 10). Reward scales from 75% (autonomy 1) to 30% (autonomy 10) of normal — faster resolution costs you more of the bonus.
+
+Agent salaries drain every second alongside staff payroll and cloud ops costs.
+
+---
+
 ## Currently NOT implemented (coming in later phases)
 
 The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to come:
@@ -364,8 +403,8 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 - ~~Service cost layer~~ ✅ shipped (Phase 5d)
 
 ### Phase 6 — AI Endgame & Prestige
-- **GPU hardware** tier (power-hungry, generates Research Points)
-- **AI Agents** with autonomy slider (the meta-joke payoff: agents auto-click for you)
+- ~~GPU hardware tier~~ ✅ shipped (Phase 6a)
+- ~~AI Agents with autonomy slider~~ ✅ shipped (Phase 6b)
 - **Acqui-hire prestige** — sell your infra to BigCorp, reset run, earn **Skill Points**
 - **Skill Tree** — 4 branches (Hardware / Operations / Security / AI) with permanent buffs across resets, gated by prestige count
 - **AGI Achieved** terminal node (req: 10 prestiges) — passive endgame

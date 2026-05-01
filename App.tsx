@@ -24,10 +24,12 @@ import { StaffScreen } from './components/StaffScreen';
 import { ResearchScreen } from './components/ResearchScreen';
 import { CloudScreen } from './components/CloudScreen';
 import { GpuScreen } from './components/GpuScreen';
+import { AgentScreen } from './components/AgentScreen';
 import { isStaffNavVisible, getResearchPointsPerSec } from './engine/staff';
 import { isResearchNavVisible } from './engine/research';
 import { isCloudUnlocked } from './engine/regions';
 import { isGpuNavVisible, getTotalGpuOutput, getTotalGpuRpOutput } from './engine/gpus';
+import { isAgentsNavVisible, getTotalAgentSalary } from './engine/agents';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -50,7 +52,8 @@ type Screen =
   | 'staff'
   | 'research'
   | 'cloud'
-  | 'gpu';
+  | 'gpu'
+  | 'agents';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -61,6 +64,7 @@ export default function App() {
   const research = useGameStore((state) => state.research);
   const servers = useGameStore((state) => state.servers);
   const gpus = useGameStore((state) => state.gpus);
+  const agents = useGameStore((state) => state.agents);
   const regions = useGameStore((state) => state.regions);
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
@@ -176,12 +180,21 @@ export default function App() {
       </>
     );
   }
+  if (screen === 'agents') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <AgentScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
 
   // Main dashboard
   const cps = getCreditsPerSec();
   const salary = getTotalSalaryFn();
   const cloudCost = getCloudOperatingCost();
-  const totalCosts = salary + cloudCost;
+  const agentCostTotal = getTotalAgentSalary(agents);
+  const totalCosts = salary + cloudCost + agentCostTotal;
   const netCps = cps - totalCosts;
   const totalStaff = Object.values(staff).reduce((a, b) => a + b, 0);
   const showStaffNav = isStaffNavVisible(getGateState());
@@ -194,6 +207,9 @@ export default function App() {
   const showCloudNav = isCloudUnlocked(upgrades);
   const showGpuNav = isGpuNavVisible(research);
   const totalGpuCount = Object.values(gpus).reduce((a, b) => a + b, 0);
+  const showAgentsNav = isAgentsNavVisible(gpus);
+  const hiredAgentCount = Object.values(agents).filter(Boolean).length;
+  const agentSalary = getTotalAgentSalary(agents);
   const ownedRegionCount = Object.values(regions).filter(Boolean).length;
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
@@ -259,6 +275,11 @@ export default function App() {
               {cloudCost > 0 && (
                 <Text style={styles.salaryLine}>
                   − {cloudCost.toLocaleString()} cloud ops
+                </Text>
+              )}
+              {agentCostTotal > 0 && (
+                <Text style={styles.salaryLine}>
+                  − {agentCostTotal.toLocaleString()} agents
                 </Text>
               )}
               <Text
@@ -463,6 +484,18 @@ export default function App() {
                   : 'Build GPU hardware'
               }
               onPress={() => setScreen('gpu')}
+            />
+          )}
+          {showAgentsNav && (
+            <NavTile
+              icon="🤖"
+              label="AI AGENTS"
+              hint={
+                hiredAgentCount > 0
+                  ? `${hiredAgentCount}/3 active · ${agentSalary} cr/sec`
+                  : 'Hire AI to automate'
+              }
+              onPress={() => setScreen('agents')}
             />
           )}
         </View>
