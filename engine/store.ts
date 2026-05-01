@@ -73,6 +73,37 @@ import {
   getResponderRewardMult,
   shouldOverclock,
 } from './agents';
+import { calcSkillPointsEarned } from './prestige';
+import {
+  SKILL_NODES,
+  isSkillAvailable,
+  getSkillStartingCredits,
+  getSkillStartingServers,
+  getSkillServerCostMult,
+  getSkillBuildTimeMult,
+  getSkillServerOutputMult,
+  getSkillUpgradeCostMult,
+  getSkillResearchMult,
+  getSkillTapBonus,
+  getSkillStaffCostMult,
+  getSkillCloudCostMult,
+  getSkillOfflineEfficiency,
+  getSkillDdosTapReduction,
+  getSkillTimeoutPenaltyMult,
+  getSkillIncidentRewardMult,
+  getSkillIncidentTimerBonus,
+  getSkillOverclockFailureMult,
+  getSkillIncidentTriggerMult,
+  getSkillHackerRewardMult,
+  getSkillGpuOutputMult,
+  getSkillGpuRpMult,
+  getSkillAgentCostMult,
+  getSkillAgentSalaryMult,
+  getSkillResponderBonus,
+  getSkillAgentSpeedMult,
+  getSkillBonusPower,
+  getSkillBonusCooling,
+} from './skillTree';
 import {
   UPGRADES,
   isUpgradeAvailable,
@@ -113,6 +144,10 @@ export interface GameState {
   agentAutonomy: number; // 1–10 global autonomy slider
   agentDevOpsAccum: number; // seconds since last DevOps Agent auto-buy
   agentResponderAccum: number; // seconds since incident started (for auto-resolve delay)
+  highestCredits: number; // peak credits this run (watermark for prestige SP calc)
+  skillPoints: number; // permanent SP earned across prestiges
+  prestigeCount: number; // how many times player has prestiged
+  skills: Record<string, boolean>; // skill tree nodes purchased with SP
   totalStaffEverHired: number; // cumulative count for "hire 10 staff" gate
   activeBuild: {
     kind: 'server' | 'region' | 'gpu';
@@ -173,6 +208,8 @@ export interface GameState {
   hireAgent: (agentId: string) => void;
   fireAgent: (agentId: string) => void;
   setAgentAutonomy: (level: number) => void;
+  prestige: () => void;
+  buySkill: (skillId: string) => void;
   toggleOverclock: () => void;
   clearFailureNotice: () => void;
   resolveIncident: () => void;
@@ -203,6 +240,10 @@ interface SaveData {
   staff: Record<string, number>;
   agents: Record<string, boolean>;
   agentAutonomy: number;
+  highestCredits: number;
+  skillPoints: number;
+  prestigeCount: number;
+  skills: Record<string, boolean>;
   totalStaffEverHired: number;
   activeBuild: GameState['activeBuild'];
   overclockEnabled: boolean;
@@ -224,21 +265,25 @@ function calcCreditsPerSec(
   research: Record<string, boolean>,
   regions: Record<string, boolean>,
   overclockEnabled: boolean,
-  activeIncident: ActiveIncident | null
+  activeIncident: ActiveIncident | null,
+  skills: Record<string, boolean> = {}
 ): number {
+  const skillServerMult = getSkillServerOutputMult(skills);
+  const skillGpuMult = getSkillGpuOutputMult(skills);
+
   // Sum each tier's output WITH its upgrade multiplier applied
   const serverOutput = SERVER_TIERS.reduce((sum, tier) => {
     const owned = servers[tier.id] ?? 0;
     const tierMult = getServerOutputMultiplier(tier.id, upgrades);
     return sum + getServerOutput(tier, owned) * tierMult;
-  }, 0);
+  }, 0) * skillServerMult;
 
   const clusterOutput = getTotalClusterOutput(clusters, upgrades, (tierId) =>
     getServerOutputMultiplier(tierId, upgrades)
-  );
+  ) * skillServerMult; // clusters are server-based, scale with server skill
 
   const regionsOutput = getOwnedRegionsOutput(regions);
-  const gpuOutput = getTotalGpuOutput(gpus);
+  const gpuOutput = getTotalGpuOutput(gpus) * skillGpuMult;
 
   const staffMult = getStaffOutputMultiplier(staff);
   const researchMult = getResearchOutputMultiplier(research);
@@ -262,11 +307,11 @@ function calcCreditsPerSec(
     getTotalGpuHeat(gpus);
 
   const powerCap =
-    getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
+    getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades) + getSkillBonusPower(skills);
   const powerEff = getEfficiency(totalPower, powerCap);
   const coolingEff = getEfficiency(
     totalHeat,
-    getTotalCapacity(capacity, 'cooling') * coolingCapMult
+    getTotalCapacity(capacity, 'cooling') * coolingCapMult + getSkillBonusCooling(skills)
   );
   const efficiency = Math.min(powerEff, coolingEff);
   const incidentMult = getIncidentMultiplier(activeIncident);
@@ -289,6 +334,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   agentAutonomy: 5,
   agentDevOpsAccum: 0,
   agentResponderAccum: 0,
+  highestCredits: 0,
+  skillPoints: 0,
+  prestigeCount: 0,
+  skills: {},
   totalStaffEverHired: 0,
   activeBuild: null,
   overclockEnabled: false,
@@ -305,7 +354,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   hydrated: false,
 
   getCreditsPerSec: () => {
-    const { servers, clusters, gpus, capacity, upgrades, staff, research, regions, overclockEnabled, activeIncident } = get();
+    const { servers, clusters, gpus, capacity, upgrades, staff, research, regions, overclockEnabled, activeIncident, skills } = get();
     return calcCreditsPerSec(
       servers,
       clusters,
@@ -316,7 +365,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       research,
       regions,
       overclockEnabled,
-      activeIncident
+      activeIncident,
+      skills
     );
   },
 
@@ -324,7 +374,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const cps = get().getCreditsPerSec();
     const salary = getTotalSalary(get().staff);
     const cloudCost = getOwnedRegionsCost(get().regions);
-    const agentSalary = getTotalAgentSalary(get().agents);
+    const agentSalary = getTotalAgentSalary(get().agents) * getSkillAgentSalaryMult(get().skills);
     return cps - salary - cloudCost - agentSalary;
   },
 
@@ -332,7 +382,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getCloudOperatingCost: () => getOwnedRegionsCost(get().regions),
 
-  getAgentSalary: () => getTotalAgentSalary(get().agents),
+  getAgentSalary: () => getTotalAgentSalary(get().agents) * getSkillAgentSalaryMult(get().skills),
 
   getGateState: () => {
     const {
@@ -357,7 +407,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   getPowerStats: () => {
-    const { servers, clusters, gpus, capacity, upgrades, research, regions } = get();
+    const { servers, clusters, gpus, capacity, upgrades, research, regions, skills } = get();
     const drawMult = getResearchPowerDrawMultiplier(research);
     const used =
       (getTotalPowerDraw(servers) +
@@ -366,12 +416,12 @@ export const useGameStore = create<GameState>((set, get) => ({
         getTotalGpuPower(gpus)) *
       drawMult;
     const cap =
-      getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
+      getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades) + getSkillBonusPower(skills);
     return { used, capacity: cap, efficiency: getEfficiency(used, cap) };
   },
 
   getCoolingStats: () => {
-    const { servers, clusters, gpus, capacity, research, regions } = get();
+    const { servers, clusters, gpus, capacity, research, regions, skills } = get();
     const used =
       getTotalHeatOutput(servers) +
       getTotalClusterHeat(clusters) +
@@ -379,14 +429,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       getTotalGpuHeat(gpus);
     const cap =
       getTotalCapacity(capacity, 'cooling') *
-      getResearchCoolingMultiplier(research);
+      getResearchCoolingMultiplier(research) + getSkillBonusCooling(skills);
     return { used, capacity: cap, efficiency: getEfficiency(used, cap) };
   },
 
   getEfficiencyMultiplier: () => {
-    const { servers, clusters, gpus, capacity, upgrades, research, regions } = get();
+    const { servers, clusters, gpus, capacity, upgrades, research, regions, skills } = get();
     const powerCap =
-      getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades);
+      getTotalCapacity(capacity, 'power') + getBonusPowerCapacity(upgrades) + getSkillBonusPower(skills);
     const drawMult = getResearchPowerDrawMultiplier(research);
     const totalPower =
       (getTotalPowerDraw(servers) +
@@ -403,7 +453,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const coolingEff = getEfficiency(
       totalHeat,
       getTotalCapacity(capacity, 'cooling') *
-        getResearchCoolingMultiplier(research)
+        getResearchCoolingMultiplier(research) + getSkillBonusCooling(skills)
     );
     return Math.min(powerEff, coolingEff);
   },
@@ -411,6 +461,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   tick: () => {
     const {
       credits,
+      highestCredits,
+      skills,
       servers,
       clusters,
       gpus,
@@ -451,11 +503,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     let nextIncident = activeIncident;
     let incidentPenalty = 0;
     let incidentResolution: GameState['lastIncidentResolution'] = null;
+    const skillPenaltyMult = getSkillTimeoutPenaltyMult(skills);
     if (nextIncident && Date.now() >= nextIncident.expiresAt) {
       // Timed out
-      const baseCps = calcCreditsPerSec(nextServers, clusters, nextGpus, capacity, upgrades, staff, research, nextRegions, false, null);
+      const baseCps = calcCreditsPerSec(nextServers, clusters, nextGpus, capacity, upgrades, staff, research, nextRegions, false, null, skills);
       if (nextIncident.type === 'ddos') {
-        incidentPenalty = baseCps * INCIDENT_CONFIG.ddos.timeoutPenaltySecondsOfCps;
+        incidentPenalty = baseCps * INCIDENT_CONFIG.ddos.timeoutPenaltySecondsOfCps * skillPenaltyMult;
         incidentResolution = {
           type: 'ddos',
           success: false,
@@ -463,7 +516,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           penaltyCredits: incidentPenalty,
         };
       } else if (nextIncident.type === 'disk_full') {
-        incidentPenalty = baseCps * INCIDENT_CONFIG.disk_full.timeoutPenaltySecondsOfCps;
+        incidentPenalty = baseCps * INCIDENT_CONFIG.disk_full.timeoutPenaltySecondsOfCps * skillPenaltyMult;
         incidentResolution = {
           type: 'disk_full',
           success: false,
@@ -471,7 +524,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           penaltyCredits: incidentPenalty,
         };
       } else if (nextIncident.type === 'memory_leak') {
-        incidentPenalty = credits * INCIDENT_CONFIG.memory_leak.timeoutCreditPercent;
+        incidentPenalty = credits * INCIDENT_CONFIG.memory_leak.timeoutCreditPercent * skillPenaltyMult;
         incidentResolution = {
           type: 'memory_leak',
           success: false,
@@ -480,7 +533,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         };
       } else if (nextIncident.type === 'hacker_breach') {
         // Lose 10% of total credits on missed hack
-        incidentPenalty = credits * INCIDENT_CONFIG.hacker_breach.timeoutCreditPercent;
+        incidentPenalty = credits * INCIDENT_CONFIG.hacker_breach.timeoutCreditPercent * skillPenaltyMult;
         incidentResolution = {
           type: 'hacker_breach',
           success: false,
@@ -503,11 +556,25 @@ export const useGameStore = create<GameState>((set, get) => ({
       const totalClusters = Object.values(clusters).reduce((a, b) => a + b, 0);
       if (
         totalServers + totalClusters > 0 &&
-        Math.random() < INCIDENT_TRIGGER_CHANCE_PER_SEC
+        Math.random() < INCIDENT_TRIGGER_CHANCE_PER_SEC * getSkillIncidentTriggerMult(skills)
       ) {
         const weights = getIncidentWeightModifiers(staff);
         const chosen = pickRandomIncident(weights);
-        if (chosen) nextIncident = createIncident(chosen);
+        if (chosen) {
+          nextIncident = createIncident(chosen);
+          // Apply skill bonuses to newly created incident
+          const timerBonus = getSkillIncidentTimerBonus(skills);
+          if (timerBonus > 0) {
+            nextIncident = { ...nextIncident, expiresAt: nextIncident.expiresAt + timerBonus * 1000 };
+          }
+          const tapReduction = getSkillDdosTapReduction(skills);
+          if (tapReduction > 0 && nextIncident.type === 'ddos') {
+            nextIncident = {
+              ...nextIncident,
+              tapsRemaining: Math.max(1, nextIncident.tapsRemaining - tapReduction),
+            };
+          }
+        }
       }
     }
 
@@ -521,19 +588,22 @@ export const useGameStore = create<GameState>((set, get) => ({
       research,
       nextRegions,
       overclockEnabled,
-      nextIncident
+      nextIncident,
+      skills
     );
 
     // Salary + cloud operating costs + agent salaries drain every tick
     const salary = getTotalSalary(staff);
     const cloudCost = getOwnedRegionsCost(nextRegions);
-    const agentSalary = getTotalAgentSalary(agents);
+    const agentSalary = getTotalAgentSalary(agents) * getSkillAgentSalaryMult(skills);
     const totalDrain = salary + cloudCost + agentSalary;
 
-    // Research Points generated by Data Scientists + GPU hardware, boosted by research nodes
+    // Research Points generated by Data Scientists + GPU hardware, boosted by research nodes + skills
+    const skillGpuRpMult = getSkillGpuRpMult(skills);
     const rpGain =
-      (getResearchPointsPerSec(staff) + getTotalGpuRpOutput(nextGpus)) *
-      getResearchRpMultiplier(research);
+      (getResearchPointsPerSec(staff) + getTotalGpuRpOutput(nextGpus) * skillGpuRpMult) *
+      getResearchRpMultiplier(research) *
+      getSkillResearchMult(skills);
 
     // Cron Jobs: auto-tap every 5 seconds if purchased
     let cronAccum = cronTickAccumulator + 1;
@@ -563,9 +633,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // DevOps Agent: auto-buy servers AND capacity to keep efficiency healthy
+    const agentSpeedMult = getSkillAgentSpeedMult(skills);
     let nextCapacity = capacity;
     if (agents['devops_agent']) {
-      const interval = getDevOpsInterval(agentAutonomy);
+      const interval = Math.max(1, Math.round(getDevOpsInterval(agentAutonomy) * agentSpeedMult));
       if (devOpsAccum >= interval) {
         devOpsAccum = 0;
         const currentCredits = credits + cps + cronCredits - totalDrain - incidentPenalty;
@@ -634,10 +705,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Incident Responder: auto-resolve incidents after delay
     if (agents['incident_responder'] && nextIncident) {
       responderAccum += 1;
-      const delay = getResponderDelay(agentAutonomy);
+      const delay = Math.max(1, Math.round(getResponderDelay(agentAutonomy) * agentSpeedMult));
       if (responderAccum >= delay) {
-        const baseCps = calcCreditsPerSec(nextServers, clusters, nextGpus, capacity, upgrades, staff, research, nextRegions, false, null);
-        const rewardMult = getResponderRewardMult(agentAutonomy);
+        const baseCps = calcCreditsPerSec(nextServers, clusters, nextGpus, capacity, upgrades, staff, research, nextRegions, false, null, skills);
+        let rewardMult = getResponderRewardMult(agentAutonomy);
+        // Smart Agents skill: halve the penalty (move reward mult halfway to 1.0)
+        if (getSkillResponderBonus(skills)) {
+          rewardMult = rewardMult + (1 - rewardMult) / 2;
+        }
 
         if (nextIncident.type === 'ddos') {
           agentAutoReward = baseCps * INCIDENT_CONFIG.ddos.rewardSecondsOfCps * rewardMult;
@@ -686,15 +761,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       const failureChance =
         OVERCLOCK_FAILURE_CHANCE *
         getOverclockFailureMultiplier(staff) *
-        getOverclockFailureChanceMultiplier(upgrades);
+        getOverclockFailureChanceMultiplier(upgrades) *
+        getSkillOverclockFailureMult(skills);
       if (totalServers > 0 && Math.random() < failureChance) {
         const ownedTiers = SERVER_TIERS.filter(
           (t) => (nextServers[t.id] ?? 0) > 0
         );
         const victim =
           ownedTiers[Math.floor(Math.random() * ownedTiers.length)];
+        const newCredits = Math.max(0, credits + cps + cronCredits + agentAutoReward - totalDrain - incidentPenalty);
         set({
-          credits: Math.max(0, credits + cps + cronCredits + agentAutoReward - totalDrain - incidentPenalty),
+          credits: newCredits,
+          highestCredits: Math.max(highestCredits, newCredits),
           researchPoints: get().researchPoints + rpGain,
           servers: { ...nextServers, [victim.id]: nextServers[victim.id] - 1 },
           gpus: nextGpus,
@@ -713,8 +791,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
+    const newCredits = Math.max(0, credits + cps + cronCredits + agentAutoReward - totalDrain - incidentPenalty);
     set({
-      credits: Math.max(0, credits + cps + cronCredits + agentAutoReward - totalDrain - incidentPenalty),
+      credits: newCredits,
+      highestCredits: Math.max(highestCredits, newCredits),
       researchPoints: get().researchPoints + rpGain,
       servers: nextServers,
       gpus: nextGpus,
@@ -735,21 +815,22 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapProvision: () => {
-    const { credits, upgrades, research } = get();
+    const { credits, upgrades, research, skills } = get();
     const tapCredits =
-      (1 + getClickCreditBonus(upgrades)) *
+      (1 + getClickCreditBonus(upgrades) + getSkillTapBonus(skills)) *
       getClickCreditMultiplier(upgrades) *
       getResearchClickMultiplier(research);
     set({ credits: credits + tapCredits });
   },
 
   buyServer: (tierId) => {
-    const { credits, servers, vendorDiscountAvailable, activeBuild } = get();
+    const { credits, servers, skills, vendorDiscountAvailable, activeBuild } = get();
     const tier = SERVER_TIERS.find((t) => t.id === tierId);
     if (!tier) return;
 
     const owned = servers[tierId] ?? 0;
-    const fullCost = getServerCost(tier, owned);
+    const rawCost = getServerCost(tier, owned);
+    const fullCost = Math.floor(rawCost * getSkillServerCostMult(skills));
     const cost = vendorDiscountAvailable ? Math.floor(fullCost * 0.5) : fullCost;
     if (credits < cost) return;
 
@@ -757,6 +838,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (tier.buildTimeSeconds && tier.buildTimeSeconds > 0) {
       if (activeBuild) return; // only one build at a time
       const now = Date.now();
+      const buildMs = tier.buildTimeSeconds * 1000 * getSkillBuildTimeMult(skills);
       set({
         credits: credits - cost,
         vendorDiscountAvailable: false,
@@ -764,7 +846,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           kind: 'server',
           id: tierId,
           startedAt: now,
-          completesAt: now + tier.buildTimeSeconds * 1000,
+          completesAt: now + buildMs,
         },
       });
       return;
@@ -821,7 +903,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   buyGpu: (tierId) => {
-    const { credits, gpus, activeBuild } = get();
+    const { credits, gpus, skills, activeBuild } = get();
     const tier = GPU_TIERS.find((t) => t.id === tierId);
     if (!tier) return;
     if (activeBuild) return; // build slot occupied
@@ -831,13 +913,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (credits < cost) return;
 
     const now = Date.now();
+    const buildMs = tier.buildTimeSeconds * 1000 * getSkillBuildTimeMult(skills);
     set({
       credits: credits - cost,
       activeBuild: {
         kind: 'gpu',
         id: tierId,
         startedAt: now,
-        completesAt: now + tier.buildTimeSeconds * 1000,
+        completesAt: now + buildMs,
       },
     });
   },
@@ -910,21 +993,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   buyRegion: (regionId) => {
-    const { credits, regions, activeBuild } = get();
+    const { credits, regions, skills, activeBuild } = get();
     const region = CLOUD_REGIONS.find((r) => r.id === regionId);
     if (!region) return;
     if (regions[regionId]) return; // already owned (one per region)
     if (activeBuild) return; // build slot occupied
-    if (credits < region.cost) return;
+    const cost = Math.floor(region.cost * getSkillCloudCostMult(skills));
+    if (credits < cost) return;
 
     const now = Date.now();
+    const buildMs = region.buildTimeSeconds * 1000 * getSkillBuildTimeMult(skills);
     set({
-      credits: credits - region.cost,
+      credits: credits - cost,
       activeBuild: {
         kind: 'region',
         id: regionId,
         startedAt: now,
-        completesAt: now + region.buildTimeSeconds * 1000,
+        completesAt: now + buildMs,
       },
     });
   },
@@ -960,15 +1045,16 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   buyUpgrade: (upgradeId) => {
-    const { credits, upgrades, servers } = get();
+    const { credits, upgrades, servers, skills } = get();
     const upgrade = UPGRADES.find((u) => u.id === upgradeId);
     if (!upgrade) return;
     if (upgrades[upgradeId]) return; // already owned
     if (!isUpgradeAvailable(upgrade, upgrades, servers)) return;
-    if (credits < upgrade.cost) return;
+    const cost = Math.floor(upgrade.cost * getSkillUpgradeCostMult(skills));
+    if (credits < cost) return;
 
     set({
-      credits: credits - upgrade.cost,
+      credits: credits - cost,
       upgrades: { ...upgrades, [upgradeId]: true },
     });
   },
@@ -988,11 +1074,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   hireStaff: (roleId) => {
-    const { credits, staff, totalStaffEverHired } = get();
+    const { credits, staff, skills, totalStaffEverHired } = get();
     const role = STAFF_ROLES.find((r) => r.id === roleId);
     if (!role) return;
     const owned = staff[roleId] ?? 0;
-    const cost = getHireCost(role, owned);
+    const cost = Math.floor(getHireCost(role, owned) * getSkillStaffCostMult(skills));
     if (credits < cost) return;
     // Verify gate is open
     const gates = get().getGateState();
@@ -1019,13 +1105,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   hireAgent: (agentId) => {
-    const { credits, agents } = get();
+    const { credits, agents, skills } = get();
     const agent = AGENT_TYPES.find((a) => a.id === agentId);
     if (!agent) return;
     if (agents[agentId]) return; // already hired
-    if (credits < agent.cost) return;
+    const cost = Math.floor(agent.cost * getSkillAgentCostMult(skills));
+    if (credits < cost) return;
     set({
-      credits: credits - agent.cost,
+      credits: credits - cost,
       agents: { ...agents, [agentId]: true },
     });
   },
@@ -1048,6 +1135,63 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ agentAutonomy: Math.max(1, Math.min(10, level)) });
   },
 
+  prestige: () => {
+    const { highestCredits, skillPoints, prestigeCount, skills } = get();
+    const spEarned = calcSkillPointsEarned(highestCredits);
+    if (spEarned <= 0) return;
+
+    // Apply skill-tree starting bonuses for the new run
+    const startCredits = getSkillStartingCredits(skills);
+    const startServers = getSkillStartingServers(skills);
+
+    // Reset all run state, keep meta-progression (SP, prestige count, skills)
+    set({
+      credits: startCredits,
+      researchPoints: 0,
+      servers: startServers,
+      clusters: {},
+      gpus: {},
+      capacity: {},
+      upgrades: {},
+      research: {},
+      regions: {},
+      staff: {},
+      agents: {},
+      agentAutonomy: 5,
+      agentDevOpsAccum: 0,
+      agentResponderAccum: 0,
+      highestCredits: startCredits, // watermark starts at starting credits
+      skillPoints: skillPoints + spEarned,
+      prestigeCount: prestigeCount + 1,
+      skills, // preserved
+      totalStaffEverHired: 0,
+      activeBuild: null,
+      overclockEnabled: false,
+      cronTickAccumulator: 0,
+      activeIncident: null,
+      vendorDiscountAvailable: false,
+      ddosResolvedCount: 0,
+      diskFullResolvedCount: 0,
+      vendorOfferAcceptedCount: 0,
+      lastIncidentResolution: null,
+      lastFailure: null,
+      pendingOfflineEarnings: 0,
+    });
+  },
+
+  buySkill: (skillId) => {
+    const { skillPoints, skills, prestigeCount } = get();
+    const node = SKILL_NODES.find((n) => n.id === skillId);
+    if (!node) return;
+    if (!isSkillAvailable(node, skills, prestigeCount)) return;
+    if (skillPoints < node.cost) return;
+
+    set({
+      skillPoints: skillPoints - node.cost,
+      skills: { ...skills, [skillId]: true },
+    });
+  },
+
   toggleOverclock: () => {
     set((state) => ({ overclockEnabled: !state.overclockEnabled }));
   },
@@ -1059,7 +1203,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // ─── Incident actions ───
   resolveIncident: () => {
     // Generic single-tap resolve (used by Disk Full and Memory Leak)
-    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, diskFullResolvedCount } = get();
+    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, skills, diskFullResolvedCount } = get();
     if (!activeIncident) return;
     if (
       activeIncident.type !== 'disk_full' &&
@@ -1067,9 +1211,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     )
       return;
 
-    const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null);
+    const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null, skills);
     const config = INCIDENT_CONFIG[activeIncident.type];
-    const reward = baseCps * config.rewardSecondsOfCps;
+    const reward = baseCps * config.rewardSecondsOfCps * getSkillIncidentRewardMult(skills);
 
     set({
       credits: credits + reward,
@@ -1088,7 +1232,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapDdosMitigate: () => {
-    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, ddosResolvedCount } = get();
+    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, skills, ddosResolvedCount } = get();
     if (!activeIncident || activeIncident.type !== 'ddos') return;
 
     const remaining = activeIncident.tapsRemaining - 1;
@@ -1098,8 +1242,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // Mitigation complete
-    const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null);
-    const reward = baseCps * INCIDENT_CONFIG.ddos.rewardSecondsOfCps;
+    const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null, skills);
+    const reward = baseCps * INCIDENT_CONFIG.ddos.rewardSecondsOfCps * getSkillIncidentRewardMult(skills);
     set({
       credits: credits + reward,
       activeIncident: null,
@@ -1114,7 +1258,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   tapHackerSequence: (letter: string) => {
-    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions } = get();
+    const { credits, activeIncident, servers, clusters, gpus, capacity, upgrades, staff, research, regions, skills } = get();
     if (!activeIncident || activeIncident.type !== 'hacker_breach') return;
 
     const expectedLetter = activeIncident.sequence[activeIncident.currentStep];
@@ -1122,8 +1266,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       const nextStep = activeIncident.currentStep + 1;
       if (nextStep >= activeIncident.sequence.length) {
         // Sequence complete — patched the breach
-        const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null);
-        const reward = baseCps * INCIDENT_CONFIG.hacker_breach.rewardSecondsOfCps;
+        const baseCps = calcCreditsPerSec(servers, clusters, gpus, capacity, upgrades, staff, research, regions, false, null, skills);
+        const reward = baseCps * INCIDENT_CONFIG.hacker_breach.rewardSecondsOfCps * getSkillIncidentRewardMult(skills) * getSkillHackerRewardMult(skills);
         set({
           credits: credits + reward,
           activeIncident: null,
@@ -1213,6 +1357,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       agentAutonomy: 5,
       agentDevOpsAccum: 0,
       agentResponderAccum: 0,
+      highestCredits: 0,
+      skillPoints: 0,
+      prestigeCount: 0,
+      skills: {},
       totalStaffEverHired: 0,
       activeBuild: null,
       overclockEnabled: false,
@@ -1253,6 +1401,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       staff,
       agents,
       agentAutonomy,
+      highestCredits,
+      skillPoints,
+      prestigeCount,
+      skills,
       totalStaffEverHired,
       activeBuild,
       overclockEnabled,
@@ -1276,6 +1428,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       staff,
       agents,
       agentAutonomy,
+      highestCredits,
+      skillPoints,
+      prestigeCount,
+      skills,
       totalStaffEverHired,
       activeBuild,
       overclockEnabled,
@@ -1313,6 +1469,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const savedStaff = data.staff ?? {};
     const savedAgents = data.agents ?? {};
     const savedAgentAutonomy = data.agentAutonomy ?? 5;
+    const savedHighestCredits = data.highestCredits ?? 0;
+    const savedSkillPoints = data.skillPoints ?? 0;
+    const savedPrestigeCount = data.prestigeCount ?? 0;
+    const savedSkills = data.skills ?? {};
     const savedVendorDiscount = data.vendorDiscountAvailable ?? false;
     const savedDdos = data.ddosResolvedCount ?? 0;
     const savedDisk = data.diskFullResolvedCount ?? 0;
@@ -1347,13 +1507,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       savedResearch,
       savedRegionsLocal,
       data.overclockEnabled ?? false,
-      null
+      null,
+      savedSkills
     );
     const salary = getTotalSalary(savedStaff);
     const cloudCost = getOwnedRegionsCost(savedRegionsLocal);
     const agentCost = getTotalAgentSalary(savedAgents);
     const netCps = Math.max(0, grossCps - salary - cloudCost - agentCost);
-    const newOffline = elapsedSec * netCps * OFFLINE_EFFICIENCY;
+    const offlineEff = getSkillOfflineEfficiency(savedSkills);
+    const newOffline = elapsedSec * netCps * offlineEff;
     const totalPending = (data.pendingOfflineEarnings || 0) + newOffline;
 
     // Research points accumulate offline at full rate (no efficiency penalty —
@@ -1379,6 +1541,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       agentAutonomy: savedAgentAutonomy,
       agentDevOpsAccum: 0,
       agentResponderAccum: 0,
+      highestCredits: savedHighestCredits,
+      skillPoints: savedSkillPoints,
+      prestigeCount: savedPrestigeCount,
+      skills: savedSkills,
       totalStaffEverHired: savedTotalHired,
       activeBuild: savedBuild,
       overclockEnabled: data.overclockEnabled ?? false,
@@ -1405,6 +1571,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       staff: savedStaff,
       agents: savedAgents,
       agentAutonomy: savedAgentAutonomy,
+      highestCredits: savedHighestCredits,
+      skillPoints: savedSkillPoints,
+      prestigeCount: savedPrestigeCount,
+      skills: savedSkills,
       totalStaffEverHired: savedTotalHired,
       activeBuild: savedBuild,
       overclockEnabled: data.overclockEnabled ?? false,

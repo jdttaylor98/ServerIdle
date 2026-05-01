@@ -1,6 +1,6 @@
 # ServerIdle — Gameplay Flow
 
-End-to-end walkthrough of the current player experience. Everything below Phase 3 is *implemented and live*. Phase 4+ is in [DESIGN.md](./DESIGN.md) but **not yet built**.
+End-to-end walkthrough of the current player experience. Everything through Phase 6c is *implemented and live*.
 
 ---
 
@@ -475,6 +475,103 @@ The full design is in [DESIGN.md](./DESIGN.md). Highlights of what's still to co
 |---|---|---|---|
 | Research Lab | 250,000 | Own 1 Data Center | Unlock Data Scientist + Research Points |
 | Multi-Region Deployment | 1,000,000 | Own 1 Data Center | Unlock the Cloud screen + region leases |
+
+---
+
+## Phase 6c — Prestige (Acqui-hire)
+
+Once the player reaches **1M peak credits** in a run, the **ACQUI-HIRE** nav tile appears on the dashboard.
+
+### How it works
+
+BigCorp offers to buy out your infrastructure. You reset **everything** in your current run (credits, servers, clusters, GPUs, capacity, upgrades, research, regions, staff, agents) in exchange for **Skill Points (SP)** that persist permanently across resets.
+
+### SP formula
+
+`SP = floor(log10(peakCredits) - 6)`
+
+| Peak credits | SP earned |
+|---|---|
+| 10M (10^7) | 1 SP |
+| 100M (10^8) | 2 SP |
+| 1B (10^9) | 3 SP |
+| 10B (10^10) | 4 SP |
+| 100B (10^11) | 5 SP |
+| 1T (10^12) | 6 SP |
+
+**Minimum threshold**: 10M peak credits to prestige at all.
+
+### What resets
+
+- Credits, research points
+- All servers, clusters, GPUs, capacity buildings
+- All upgrades, research nodes
+- All cloud regions, staff, agents
+- Autonomy slider resets to 5
+- Incident counters, vendor discount
+
+### What persists
+
+- **Skill Points** (cumulative across all prestiges)
+- **Prestige Count** (how many times you've sold)
+- **Skill Tree** purchases (permanent once bought)
+
+### Prestige Screen
+
+The prestige screen shows:
+- Current prestige count and total SP
+- This run's current and peak credits
+- SP earned from this run
+- SP threshold table with checkmarks for reached thresholds
+- "SELL TO BIGCORP" button (disabled until 10M peak credits)
+- Progress percentage toward prestige threshold when not yet eligible
+
+---
+
+## Phase 6d — Skill Tree
+
+After your first prestige, the **SKILL TREE** nav tile appears on the dashboard. Spend Skill Points (SP) on permanent upgrades across 4 branches. Skills persist across all future prestiges.
+
+### Branches (32 nodes total, 8 per branch)
+
+**Hardware** (green) — server costs, build times, output, starting capacity
+- Bootstrapper → Bulk Discount → Quick Deploy → Datacenter Express
+- Bootstrapper → Power Surplus → Cool Start → Mega Capacity
+- Bulk Discount → Overbuilt (2+ prestiges)
+
+**Operations** (blue) — economy, research, tap credits, offline earnings
+- Venture Capital → Penny Pincher → Cloud Discount / Headhunter (2+ prestiges)
+- Venture Capital → Click Training / Angel Investor (2+ prestiges)
+- Fast Learner → Offline Mogul (3+ prestiges)
+
+**Security** (red) — incident defense, penalties, overclock safety
+- Firewall → Incident Pay → Bug Bounty (3+ prestiges)
+- Firewall → Hardened Servers (2+) → Iron Defense (3+ prestiges)
+- Backup Systems → Rapid Response → Threat Intel (2+ prestiges)
+
+**AI** (purple) — GPU output, agent costs/speed, automation
+- GPU Overclock → Neural Boost / Quantum Leap (2+) → Singularity (3+ prestiges)
+- Agent Discount → Loyal Agents → Smart Agents (2+) → Hivemind (3+ prestiges)
+
+### Unlock gating
+
+- Each skill has a minimum prestige count requirement (1, 2, or 3)
+- Skills require their prerequisite skills to be purchased first
+- Deeper/more powerful nodes require more prestiges, encouraging multiple cycles
+
+### Skill effects summary
+
+| Category | Skills | Effects |
+|---|---|---|
+| Starting bonuses | Bootstrapper, Power Surplus, Cool Start, Mega Capacity, Venture Capital, Angel Investor | Start runs with servers, capacity, and credits |
+| Cost reductions | Bulk Discount, Penny Pincher, Headhunter, Cloud Discount, Agent Discount | 10–25% off various purchases |
+| Output multipliers | Overbuilt, GPU Overclock, Quantum Leap, Singularity | +15% to ×2 on server/GPU output |
+| Build speed | Quick Deploy, Datacenter Express | Up to −50% build queue time |
+| Research | Fast Learner, Neural Boost | +25–30% RP generation |
+| Defense | Firewall, Backup Systems, Rapid Response, Threat Intel, Hardened Servers, Iron Defense | Fewer taps, less penalty, longer timers, fewer incidents, safer overclock |
+| Incident rewards | Incident Pay, Bug Bounty | +25% rewards, ×2 hacker breach |
+| Agent efficiency | Loyal Agents, Smart Agents, Hivemind | −25% salary, better responder rewards, 50% faster agents |
+| Offline | Offline Mogul | 75% offline efficiency (up from 50%) |
 
 ---
 

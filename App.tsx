@@ -25,11 +25,14 @@ import { ResearchScreen } from './components/ResearchScreen';
 import { CloudScreen } from './components/CloudScreen';
 import { GpuScreen } from './components/GpuScreen';
 import { AgentScreen } from './components/AgentScreen';
+import { PrestigeScreen } from './components/PrestigeScreen';
+import { SkillTreeScreen } from './components/SkillTreeScreen';
 import { isStaffNavVisible, getResearchPointsPerSec } from './engine/staff';
 import { isResearchNavVisible } from './engine/research';
 import { isCloudUnlocked } from './engine/regions';
 import { isGpuNavVisible, getTotalGpuOutput, getTotalGpuRpOutput } from './engine/gpus';
 import { isAgentsNavVisible, getTotalAgentSalary } from './engine/agents';
+import { isPrestigeVisible } from './engine/prestige';
 import { MiniMeter } from './components/MiniMeter';
 import { NavTile } from './components/NavTile';
 import {
@@ -53,7 +56,9 @@ type Screen =
   | 'research'
   | 'cloud'
   | 'gpu'
-  | 'agents';
+  | 'agents'
+  | 'prestige'
+  | 'skills';
 
 export default function App() {
   const credits = useGameStore((state) => state.credits);
@@ -65,6 +70,10 @@ export default function App() {
   const servers = useGameStore((state) => state.servers);
   const gpus = useGameStore((state) => state.gpus);
   const agents = useGameStore((state) => state.agents);
+  const highestCredits = useGameStore((state) => state.highestCredits);
+  const skillPoints = useGameStore((state) => state.skillPoints);
+  const prestigeCount = useGameStore((state) => state.prestigeCount);
+  const skills = useGameStore((state) => state.skills);
   const regions = useGameStore((state) => state.regions);
   const capacity = useGameStore((state) => state.capacity);
   const tapProvision = useGameStore((state) => state.tapProvision);
@@ -188,6 +197,22 @@ export default function App() {
       </>
     );
   }
+  if (screen === 'prestige') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <PrestigeScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
+  if (screen === 'skills') {
+    return (
+      <>
+        <StatusBar style="light" />
+        <SkillTreeScreen onClose={() => setScreen('main')} />
+      </>
+    );
+  }
 
   // Main dashboard
   const cps = getCreditsPerSec();
@@ -210,6 +235,9 @@ export default function App() {
   const showAgentsNav = isAgentsNavVisible(gpus);
   const hiredAgentCount = Object.values(agents).filter(Boolean).length;
   const agentSalary = getTotalAgentSalary(agents);
+  const showPrestigeNav = isPrestigeVisible(highestCredits);
+  const showSkillsNav = prestigeCount >= 1;
+  const ownedSkillCount = Object.values(skills).filter(Boolean).length;
   const ownedRegionCount = Object.values(regions).filter(Boolean).length;
   const tapCredits =
     (1 + getClickCreditBonus(upgrades)) * getClickCreditMultiplier(upgrades);
@@ -496,6 +524,30 @@ export default function App() {
                   : 'Hire AI to automate'
               }
               onPress={() => setScreen('agents')}
+            />
+          )}
+          {showPrestigeNav && (
+            <NavTile
+              icon="💼"
+              label="ACQUI-HIRE"
+              hint={
+                skillPoints > 0
+                  ? `${skillPoints} SP earned`
+                  : 'Sell to BigCorp for SP'
+              }
+              onPress={() => setScreen('prestige')}
+            />
+          )}
+          {showSkillsNav && (
+            <NavTile
+              icon="🌳"
+              label="SKILL TREE"
+              hint={
+                ownedSkillCount > 0
+                  ? `${ownedSkillCount}/32 skills · ${skillPoints} SP`
+                  : `${skillPoints} SP to spend`
+              }
+              onPress={() => setScreen('skills')}
             />
           )}
         </View>
