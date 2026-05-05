@@ -13,8 +13,8 @@ class PrestigeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final game = context.watch<GameState>();
-    final spEarned = calcSkillPointsEarned(game.highestCredits);
-    final canDo = canPrestige(game.highestCredits);
+    final spEarned = calcSkillPointsEarned(game.highestFlops);
+    final canDo = canPrestige(game.highestFlops);
     final nextThreshold = pow(10, spEarned + 7).toDouble();
 
     return Scaffold(
@@ -83,10 +83,10 @@ class PrestigeScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          _metaRow('CURRENT CREDITS',
-                              _fmtBig(game.credits), AppColors.textPrimary),
-                          _metaRow('PEAK CREDITS',
-                              _fmtBig(game.highestCredits), AppColors.textPrimary),
+                          _metaRow('CURRENT FLOPS',
+                              _fmtBig(game.flops), AppColors.textPrimary),
+                          _metaRow('PEAK FLOPS',
+                              _fmtBig(game.highestFlops), AppColors.textPrimary),
                           Container(
                             margin: const EdgeInsets.only(top: 4),
                             padding: const EdgeInsets.only(top: 8),
@@ -131,7 +131,7 @@ class PrestigeScreen extends StatelessWidget {
                             _thresholdRow(
                               exp - 6,
                               pow(10, exp).toDouble(),
-                              game.highestCredits,
+                              game.highestFlops,
                             ),
                           ],
                         ],
@@ -142,7 +142,7 @@ class PrestigeScreen extends StatelessWidget {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
-                          'Reach ${_fmtBig(prestigeMinCredits.toDouble())} peak credits to prestige.${game.highestCredits > 0 ? ' (${(game.highestCredits / prestigeMinCredits * 100).toStringAsFixed(1)}% there)' : ''}',
+                          'Reach ${_fmtBig(prestigeMinFlops.toDouble())} peak flops to prestige.${game.highestFlops > 0 ? ' (${(game.highestFlops / prestigeMinFlops * 100).toStringAsFixed(1)}% there)' : ''}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: AppColors.textDim,
@@ -185,7 +185,7 @@ class PrestigeScreen extends StatelessWidget {
                             Text(
                               canDo
                                   ? 'Earn $spEarned Skill Point${spEarned != 1 ? 's' : ''}'
-                                  : 'Not enough credits yet',
+                                  : 'Not enough flops yet',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: canDo
@@ -201,7 +201,7 @@ class PrestigeScreen extends StatelessWidget {
 
                     if (canDo && spEarned < 6)
                       Text(
-                        'Next SP at ${_fmtBig(nextThreshold)} peak credits',
+                        'Next SP at ${_fmtBig(nextThreshold)} peak flops',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: AppColors.textDim,
@@ -231,7 +231,7 @@ class PrestigeScreen extends StatelessWidget {
         content: Text(
           'BigCorp will acquire your infrastructure.\n\n'
           'You earn $spEarned Skill Point${spEarned != 1 ? 's' : ''}.\n\n'
-          'All credits, servers, upgrades, research, staff, agents, and regions reset. '
+          'All flops, servers, upgrades, research, staff, agents, and regions reset. '
           'Skill Points and prestige count are permanent.',
           style: const TextStyle(color: AppColors.textSecondary),
         ),
@@ -286,15 +286,15 @@ class PrestigeScreen extends StatelessWidget {
     );
   }
 
-  Widget _thresholdRow(int sp, double threshold, double highestCredits) {
-    final reached = highestCredits >= threshold;
+  Widget _thresholdRow(int sp, double threshold, double highestFlops) {
+    final reached = highestFlops >= threshold;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '${reached ? '✓' : '○'} ${_fmtBig(threshold)} credits',
+            '${reached ? '✓' : '○'} ${_fmtBig(threshold)} flops',
             style: TextStyle(
               color: reached ? AppColors.gold : AppColors.textDim,
               fontSize: 12,

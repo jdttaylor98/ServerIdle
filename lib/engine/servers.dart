@@ -5,7 +5,7 @@ class ServerTier {
   final String name;
   final String description;
   final int baseCost;
-  final double baseOutput; // credits per second per unit
+  final double baseOutput; // flops per second per unit
   final double costScaling; // multiplier per purchase
   final int powerDraw; // watts consumed per unit
   final int heatOutput; // BTU generated per unit

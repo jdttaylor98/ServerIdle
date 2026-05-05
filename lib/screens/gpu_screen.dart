@@ -26,7 +26,7 @@ class GpuScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'GPU',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -35,7 +35,7 @@ class GpuScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      'GPU hardware. Generates credits and Research Points. Power-hungry.',
+                      'GPU hardware. Generates flops and Research Points. Power-hungry.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.textDim,
@@ -56,8 +56,8 @@ class GpuScreen extends StatelessWidget {
                         child: Column(
                           children: [
                             _summaryRow(
-                              'CREDIT OUTPUT',
-                              '+$totalOutput cr/sec',
+                              'FLOP OUTPUT',
+                              '+$totalOutput flops/sec',
                               AppColors.green,
                             ),
                             _summaryRow(
@@ -136,7 +136,7 @@ class _GpuRowState extends State<_GpuRow> {
     final cost = getGpuCost(tier, owned);
     final totalOutput = getGpuOutput(tier, owned);
     final totalRp = getGpuRpOutput(tier, owned);
-    final canAfford = game.credits >= cost;
+    final canAfford = game.flops >= cost;
     final refund =
         owned > 0 ? (getGpuCost(tier, owned - 1) * 0.5).floor() : 0;
 
@@ -201,7 +201,7 @@ class _GpuRowState extends State<_GpuRow> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '+${tier.baseOutput} cr/sec each',
+                    '+${tier.baseOutput} flops/sec each',
                     style: const TextStyle(
                       color: AppColors.green,
                       fontSize: 12,
@@ -218,7 +218,7 @@ class _GpuRowState extends State<_GpuRow> {
                   ),
                   if (owned > 0)
                     Text(
-                      'Total: $totalOutput cr/sec · ${totalRp.toStringAsFixed(1)} RP/sec',
+                      'Total: $totalOutput flops/sec · ${totalRp.toStringAsFixed(1)} RP/sec',
                       style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 11,

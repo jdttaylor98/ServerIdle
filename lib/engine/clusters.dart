@@ -8,7 +8,7 @@ class ClusterType {
   final String description;
   final String sourceTierId; // which server tier to consume
   final int sourceCount; // how many of that tier are consumed per cluster
-  final int buildCost; // base credit cost to build
+  final int buildCost; // base flop cost to build
   final double costScaling;
   final double outputMultiplier; // bonus over raw N x baseOutput
   final String unlockUpgradeId; // which upgrade unlocks this cluster type

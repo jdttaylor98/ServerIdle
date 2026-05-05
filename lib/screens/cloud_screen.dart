@@ -23,7 +23,7 @@ class CloudScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'CLOUD',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -54,12 +54,12 @@ class CloudScreen extends StatelessWidget {
                           children: [
                             _summaryRow(
                               'OUTPUT',
-                              '+${totalOutput.floor()} cr/sec',
+                              '+${totalOutput.floor()} flops/sec',
                               AppColors.green,
                             ),
                             _summaryRow(
                               'OPS COSTS',
-                              '−${totalCost.floor()} cr/sec',
+                              '−${totalCost.floor()} flops/sec',
                               AppColors.orange,
                             ),
                             Container(
@@ -72,7 +72,7 @@ class CloudScreen extends StatelessWidget {
                               ),
                               child: _summaryRow(
                                 'NET',
-                                '${totalNet >= 0 ? '+' : ''}${totalNet.floor()} cr/sec',
+                                '${totalNet >= 0 ? '+' : ''}${totalNet.floor()} flops/sec',
                                 AppColors.textPrimary,
                               ),
                             ),
@@ -144,7 +144,7 @@ class _RegionRowState extends State<_RegionRow> {
     final game = context.watch<GameState>();
     final region = widget.region;
     final owned = game.regions[region.id] == true;
-    final canAfford = game.credits >= region.cost;
+    final canAfford = game.flops >= region.cost;
 
     final isBuildingThis = game.activeBuild?.kind == BuildKind.region &&
         game.activeBuild?.id == region.id;
@@ -197,7 +197,7 @@ class _RegionRowState extends State<_RegionRow> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '+${region.output.floor()} cr/sec',
+                    '+${region.output.floor()} flops/sec',
                     style: const TextStyle(
                       color: AppColors.green,
                       fontSize: 12,
@@ -205,14 +205,14 @@ class _RegionRowState extends State<_RegionRow> {
                     ),
                   ),
                   Text(
-                    '−${region.operatingCost.floor()} cr/sec ops cost',
+                    '−${region.operatingCost.floor()} flops/sec ops cost',
                     style: const TextStyle(
                       color: AppColors.orange,
                       fontSize: 11,
                     ),
                   ),
                   Text(
-                    '= ${(region.output - region.operatingCost).floor()} net cr/sec',
+                    '= ${(region.output - region.operatingCost).floor()} net flops/sec',
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 11,

@@ -9,11 +9,11 @@ import 'theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  runApp(const ServerIdleApp());
+  runApp(const FlopsApp());
 }
 
-class ServerIdleApp extends StatelessWidget {
-  const ServerIdleApp({super.key});
+class FlopsApp extends StatelessWidget {
+  const FlopsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class ServerIdleApp extends StatelessWidget {
         return state;
       },
       child: MaterialApp(
-        title: 'Server Idle',
+        title: 'FLOPS',
         theme: buildAppTheme(),
         debugShowCheckedModeBanner: false,
         home: const DashboardScreen(),

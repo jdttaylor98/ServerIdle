@@ -35,7 +35,7 @@ const List<ResearchNode> researchNodes = [
   ResearchNode(
     id: 'smart_caching',
     name: 'Smart Caching',
-    description: 'PROVISION tap credits ×2',
+    description: 'PROVISION tap flops ×2',
     cost: 75,
     prereqs: ['distributed_computing'],
   ),

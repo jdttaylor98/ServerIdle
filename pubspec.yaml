@@ -1,5 +1,5 @@
-name: server_idle
-description: "Server Idle - an idle game about IT infrastructure"
+name: flops
+description: "FLOPS - an idle game about IT infrastructure"
 publish_to: 'none'
 version: 1.0.0+1
 

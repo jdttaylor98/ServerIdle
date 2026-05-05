@@ -138,7 +138,7 @@ const List<SkillNode> skillNodes = [
   SkillNode(
     id: 'venture_capital',
     name: 'Venture Capital',
-    description: 'Start each run with 50,000 credits.',
+    description: 'Start each run with 50,000 flops.',
     branch: SkillBranch.operations,
     cost: 1,
     prereqs: [],
@@ -168,7 +168,7 @@ const List<SkillNode> skillNodes = [
   SkillNode(
     id: 'click_training',
     name: 'Click Training',
-    description: 'Tap provision gives +5 bonus credits.',
+    description: 'Tap provision gives +5 bonus flops.',
     branch: SkillBranch.operations,
     cost: 2,
     prereqs: ['venture_capital'],
@@ -198,7 +198,7 @@ const List<SkillNode> skillNodes = [
   SkillNode(
     id: 'angel_investor',
     name: 'Angel Investor',
-    description: 'Start each run with 500,000 credits.',
+    description: 'Start each run with 500,000 flops.',
     branch: SkillBranch.operations,
     cost: 3,
     prereqs: ['venture_capital'],
@@ -306,7 +306,7 @@ const List<SkillNode> skillNodes = [
   SkillNode(
     id: 'gpu_overclock',
     name: 'GPU Overclock',
-    description: 'GPU credit output +20%.',
+    description: 'GPU flop output +20%.',
     branch: SkillBranch.ai,
     cost: 1,
     prereqs: [],
@@ -346,7 +346,7 @@ const List<SkillNode> skillNodes = [
   SkillNode(
     id: 'quantum_leap',
     name: 'Quantum Leap',
-    description: 'GPU credit output +40% more (stacks).',
+    description: 'GPU flop output +40% more (stacks).',
     branch: SkillBranch.ai,
     cost: 3,
     prereqs: ['gpu_overclock'],
@@ -433,12 +433,12 @@ double getSkillServerOutputMult(Map<String, bool> skills) {
   return skills['overbuilt'] == true ? 1.15 : 1;
 }
 
-/// Starting credits from skills
-double getSkillStartingCredits(Map<String, bool> skills) {
-  double credits = 0;
-  if (skills['venture_capital'] == true) credits += 50000;
-  if (skills['angel_investor'] == true) credits += 500000;
-  return credits;
+/// Starting flops from skills
+double getSkillStartingFlops(Map<String, bool> skills) {
+  double flops = 0;
+  if (skills['venture_capital'] == true) flops += 50000;
+  if (skills['angel_investor'] == true) flops += 500000;
+  return flops;
 }
 
 /// Starting servers from skills: returns a map of tierId to count
@@ -474,7 +474,7 @@ double getSkillResearchMult(Map<String, bool> skills) {
   return skills['fast_learner'] == true ? 1.25 : 1;
 }
 
-/// Tap provision flat bonus credits
+/// Tap provision flat bonus flops
 int getSkillTapBonus(Map<String, bool> skills) {
   return skills['click_training'] == true ? 5 : 0;
 }
@@ -534,7 +534,7 @@ double getSkillHackerRewardMult(Map<String, bool> skills) {
   return skills['bug_bounty'] == true ? 2 : 1;
 }
 
-/// GPU credit output multiplier
+/// GPU flop output multiplier
 double getSkillGpuOutputMult(Map<String, bool> skills) {
   double mult = 1;
   if (skills['gpu_overclock'] == true) mult *= 1.20;

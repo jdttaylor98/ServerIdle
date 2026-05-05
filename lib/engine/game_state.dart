@@ -27,7 +27,7 @@ import 'skill_tree.dart';
 
 const String _saveKey = 'serverIdle_save';
 const int _maxOfflineSeconds = 8 * 60 * 60;
-const double _baseCreditsPerSec = 0;
+const double _baseFlopsPerSec = 0;
 const double _overclockMultiplier = 1.5;
 const double _overclockFailureChance = 0.005;
 const int _cronJobsIntervalSec = 5;
@@ -36,7 +36,7 @@ const double _staffRefundRatio = 0.5;
 
 class GameState extends ChangeNotifier {
   // ─── Run state ───
-  double credits = 0;
+  double flops = 0;
   double researchPoints = 0;
   Map<String, int> servers = {};
   Map<String, int> clusters = {};
@@ -63,7 +63,7 @@ class GameState extends ChangeNotifier {
   ServerFailure? lastFailure;
 
   // ─── Meta-progression (survives prestige) ───
-  double highestCredits = 0;
+  double highestFlops = 0;
   int skillPoints = 0;
   int prestigeCount = 0;
   Map<String, bool> skills = {};
@@ -79,7 +79,7 @@ class GameState extends ChangeNotifier {
 
   // ─── Derived getters ───
 
-  double get creditsPerSec => calcCreditsPerSec(
+  double get flopsPerSec => calcFlopsPerSec(
         servers, clusters, gpus, capacity, upgrades,
         staff, research, regions, overclockEnabled, activeIncident, skills,
       );
@@ -91,8 +91,8 @@ class GameState extends ChangeNotifier {
   double get agentSalaryCost =>
       getTotalAgentSalary(agents) * getSkillAgentSalaryMult(skills);
 
-  double get netCreditsPerSec =>
-      creditsPerSec - totalSalary - cloudOperatingCost - agentSalaryCost;
+  double get netFlopsPerSec =>
+      flopsPerSec - totalSalary - cloudOperatingCost - agentSalaryCost;
 
   PowerCoolingStats get powerStats {
     final drawMult = getResearchPowerDrawMultiplier(research);
@@ -185,25 +185,25 @@ class GameState extends ChangeNotifier {
     final skillPenaltyMult = getSkillTimeoutPenaltyMult(skills);
 
     if (nextIncident != null && now >= nextIncident.expiresAt) {
-      final baseCps = calcCreditsPerSec(
+      final baseCps = calcFlopsPerSec(
         nextServers, clusters, nextGpus, capacity, upgrades,
         staff, research, nextRegions, false, null, skills,
       );
       final type = nextIncident.type;
       if (type == IncidentType.ddos) {
         incidentPenalty = baseCps * incidentConfigs[type]!.timeoutPenaltySecondsOfCps * skillPenaltyMult;
-        incidentResolution = IncidentResolution(type: type, success: false, rewardCredits: 0, penaltyCredits: incidentPenalty);
+        incidentResolution = IncidentResolution(type: type, success: false, rewardFlops: 0, penaltyFlops: incidentPenalty);
       } else if (type == IncidentType.diskFull) {
         incidentPenalty = baseCps * incidentConfigs[type]!.timeoutPenaltySecondsOfCps * skillPenaltyMult;
-        incidentResolution = IncidentResolution(type: type, success: false, rewardCredits: 0, penaltyCredits: incidentPenalty);
+        incidentResolution = IncidentResolution(type: type, success: false, rewardFlops: 0, penaltyFlops: incidentPenalty);
       } else if (type == IncidentType.memoryLeak) {
-        incidentPenalty = credits * incidentConfigs[type]!.timeoutCreditPercent * skillPenaltyMult;
-        incidentResolution = IncidentResolution(type: type, success: false, rewardCredits: 0, penaltyCredits: incidentPenalty);
+        incidentPenalty = flops * incidentConfigs[type]!.timeoutFlopPercent * skillPenaltyMult;
+        incidentResolution = IncidentResolution(type: type, success: false, rewardFlops: 0, penaltyFlops: incidentPenalty);
       } else if (type == IncidentType.hackerBreach) {
-        incidentPenalty = credits * incidentConfigs[type]!.timeoutCreditPercent * skillPenaltyMult;
-        incidentResolution = IncidentResolution(type: type, success: false, rewardCredits: 0, penaltyCredits: incidentPenalty);
+        incidentPenalty = flops * incidentConfigs[type]!.timeoutFlopPercent * skillPenaltyMult;
+        incidentResolution = IncidentResolution(type: type, success: false, rewardFlops: 0, penaltyFlops: incidentPenalty);
       } else {
-        incidentResolution = IncidentResolution(type: type, success: false, rewardCredits: 0, penaltyCredits: 0);
+        incidentResolution = IncidentResolution(type: type, success: false, rewardFlops: 0, penaltyFlops: 0);
       }
       nextIncident = null;
     } else if (nextIncident == null) {
@@ -233,7 +233,7 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    final cps = calcCreditsPerSec(
+    final cps = calcFlopsPerSec(
       nextServers, clusters, nextGpus, capacity, upgrades,
       staff, research, nextRegions, overclockEnabled, nextIncident, skills,
     );
@@ -252,14 +252,14 @@ class GameState extends ChangeNotifier {
 
     // Cron jobs auto-tap
     double cronAccum = cronTickAccumulator + 1;
-    double cronCredits = 0;
+    double cronFlops = 0;
     if (hasCronJobs(upgrades) && cronAccum >= _cronJobsIntervalSec) {
       final taps = (cronAccum / _cronJobsIntervalSec).floor();
       cronAccum = cronAccum % _cronJobsIntervalSec;
-      final perTap = (1 + getClickCreditBonus(upgrades) + getSkillTapBonus(skills)) *
-          getClickCreditMultiplier(upgrades) *
+      final perTap = (1 + getClickFlopBonus(upgrades) + getSkillTapBonus(skills)) *
+          getClickFlopMultiplier(upgrades) *
           getResearchClickMultiplier(research);
-      cronCredits = perTap * taps;
+      cronFlops = perTap * taps;
     }
 
     // ─── AI Agent actions ───
@@ -283,7 +283,7 @@ class GameState extends ChangeNotifier {
       final interval = max(1, (getDevOpsInterval(agentAutonomy) * agentSpeedMult).round());
       if (devOpsAccum >= interval) {
         devOpsAccum = 0;
-        final currentCredits = credits + cps + cronCredits - totalDrain - incidentPenalty;
+        final currentFlops = flops + cps + cronFlops - totalDrain - incidentPenalty;
         final minEff = getDevOpsMinEfficiency(agentAutonomy);
 
         final powerDrawMult = getResearchPowerDrawMultiplier(research);
@@ -316,7 +316,7 @@ class GameState extends ChangeNotifier {
             final b = candidates[i];
             final owned = nextCapacity[b.id] ?? 0;
             final cost = getCapacityBuildingCost(b, owned);
-            if (cost <= currentCredits - spent) {
+            if (cost <= currentFlops - spent) {
               nextCapacity[b.id] = owned + 1;
               spent += cost;
               break;
@@ -326,7 +326,7 @@ class GameState extends ChangeNotifier {
           final affordableTiers = serverTiers.where((t) {
             final owned = nextServers[t.id] ?? 0;
             final cost = getServerCost(t, owned);
-            return cost <= currentCredits - spent && (t.buildTimeSeconds == null || t.buildTimeSeconds == 0);
+            return cost <= currentFlops - spent && (t.buildTimeSeconds == null || t.buildTimeSeconds == 0);
           }).toList();
           if (affordableTiers.isNotEmpty) {
             final best = affordableTiers.last;
@@ -345,7 +345,7 @@ class GameState extends ChangeNotifier {
       responderAccum += 1;
       final delay = max(1, (getResponderDelay(agentAutonomy) * agentSpeedMult).round());
       if (responderAccum >= delay) {
-        final baseCps = calcCreditsPerSec(
+        final baseCps = calcFlopsPerSec(
           nextServers, clusters, nextGpus, capacity, upgrades,
           staff, research, nextRegions, false, null, skills,
         );
@@ -369,8 +369,8 @@ class GameState extends ChangeNotifier {
           incidentResolution = IncidentResolution(
             type: nextIncident.type,
             success: true,
-            rewardCredits: agentAutoReward,
-            penaltyCredits: 0,
+            rewardFlops: agentAutoReward,
+            penaltyFlops: 0,
           );
           nextIncident = null;
           responderAccum = 0;
@@ -396,9 +396,9 @@ class GameState extends ChangeNotifier {
             serverTiers.where((t) => (nextServers[t.id] ?? 0) > 0).toList();
         if (ownedTiers.isNotEmpty) {
           final victim = ownedTiers[_rng.nextInt(ownedTiers.length)];
-          final newCredits = max(0.0, credits + cps + cronCredits + agentAutoReward - totalDrain - incidentPenalty);
-          credits = newCredits;
-          highestCredits = max(highestCredits, newCredits);
+          final newFlops = max(0.0, flops + cps + cronFlops + agentAutoReward - totalDrain - incidentPenalty);
+          flops = newFlops;
+          highestFlops = max(highestFlops, newFlops);
           researchPoints += rpGain;
           servers = nextServers;
           servers[victim.id] = (servers[victim.id] ?? 1) - 1;
@@ -419,9 +419,9 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    final newCredits = max(0.0, credits + cps + cronCredits + agentAutoReward - totalDrain - incidentPenalty);
-    credits = newCredits;
-    highestCredits = max(highestCredits, newCredits);
+    final newFlops = max(0.0, flops + cps + cronFlops + agentAutoReward - totalDrain - incidentPenalty);
+    flops = newFlops;
+    highestFlops = max(highestFlops, newFlops);
     researchPoints += rpGain;
     servers = nextServers;
     this.gpus = nextGpus;
@@ -439,16 +439,16 @@ class GameState extends ChangeNotifier {
 
   // ─── Actions ───
 
-  void addCredits(double amount) {
-    credits += amount;
+  void addFlops(double amount) {
+    flops += amount;
     notifyListeners();
   }
 
   void tapProvision() {
-    final tapCredits = (1 + getClickCreditBonus(upgrades) + getSkillTapBonus(skills)) *
-        getClickCreditMultiplier(upgrades) *
+    final tapFlops = (1 + getClickFlopBonus(upgrades) + getSkillTapBonus(skills)) *
+        getClickFlopMultiplier(upgrades) *
         getResearchClickMultiplier(research);
-    credits += tapCredits;
+    flops += tapFlops;
     notifyListeners();
   }
 
@@ -459,13 +459,13 @@ class GameState extends ChangeNotifier {
     final rawCost = getServerCost(tier, owned);
     final fullCost = (rawCost * getSkillServerCostMult(skills)).floor();
     final cost = vendorDiscountAvailable ? (fullCost * 0.5).floor() : fullCost;
-    if (credits < cost) return;
+    if (flops < cost) return;
 
     if (tier.buildTimeSeconds != null && tier.buildTimeSeconds! > 0) {
       if (activeBuild != null) return;
       final now = DateTime.now().millisecondsSinceEpoch;
       final buildMs = (tier.buildTimeSeconds! * 1000 * getSkillBuildTimeMult(skills)).round();
-      credits -= cost;
+      flops -= cost;
       vendorDiscountAvailable = false;
       activeBuild = ActiveBuild(
         kind: BuildKind.server, id: tierId,
@@ -475,7 +475,7 @@ class GameState extends ChangeNotifier {
       return;
     }
 
-    credits -= cost;
+    flops -= cost;
     servers[tierId] = owned + 1;
     vendorDiscountAvailable = false;
     notifyListeners();
@@ -487,7 +487,7 @@ class GameState extends ChangeNotifier {
     final owned = servers[tierId] ?? 0;
     if (owned <= 0) return;
     final refund = (getServerCost(tier, owned - 1) * _sellRefundRatio).floor();
-    credits += refund;
+    flops += refund;
     servers[tierId] = owned - 1;
     notifyListeners();
   }
@@ -498,10 +498,10 @@ class GameState extends ChangeNotifier {
     if (activeBuild != null) return;
     final owned = gpus[tierId] ?? 0;
     final cost = getGpuCost(tier, owned);
-    if (credits < cost) return;
+    if (flops < cost) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final buildMs = (tier.buildTimeSeconds * 1000 * getSkillBuildTimeMult(skills)).round();
-    credits -= cost;
+    flops -= cost;
     activeBuild = ActiveBuild(
       kind: BuildKind.gpu, id: tierId,
       startedAt: now, completesAt: now + buildMs,
@@ -515,7 +515,7 @@ class GameState extends ChangeNotifier {
     final owned = gpus[tierId] ?? 0;
     if (owned <= 0) return;
     final refund = (getGpuCost(tier, owned - 1) * _sellRefundRatio).floor();
-    credits += refund;
+    flops += refund;
     gpus[tierId] = owned - 1;
     notifyListeners();
   }
@@ -526,10 +526,10 @@ class GameState extends ChangeNotifier {
     if (regions[regionId] == true) return;
     if (activeBuild != null) return;
     final cost = (region.cost * getSkillCloudCostMult(skills)).floor();
-    if (credits < cost) return;
+    if (flops < cost) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final buildMs = (region.buildTimeSeconds * 1000 * getSkillBuildTimeMult(skills)).round();
-    credits -= cost;
+    flops -= cost;
     activeBuild = ActiveBuild(
       kind: BuildKind.region, id: regionId,
       startedAt: now, completesAt: now + buildMs,
@@ -542,7 +542,7 @@ class GameState extends ChangeNotifier {
     if (region.id != regionId) return;
     if (regions[regionId] != true) return;
     final refund = (region.cost * _sellRefundRatio).floor();
-    credits += refund;
+    flops += refund;
     regions.remove(regionId);
     notifyListeners();
   }
@@ -566,7 +566,7 @@ class GameState extends ChangeNotifier {
       final region = cloudRegions.firstWhere((r) => r.id == activeBuild!.id, orElse: () => cloudRegions.first);
       if (region.id == activeBuild!.id) refund = region.cost * 0.5;
     }
-    credits += refund;
+    flops += refund;
     activeBuild = null;
     notifyListeners();
   }
@@ -577,10 +577,10 @@ class GameState extends ChangeNotifier {
     if (!isClusterUnlocked(type, upgrades)) return;
     final owned = clusters[clusterId] ?? 0;
     final cost = getClusterCost(type, owned);
-    if (credits < cost) return;
+    if (flops < cost) return;
     final sourceOwned = servers[type.sourceTierId] ?? 0;
     if (sourceOwned < type.sourceCount) return;
-    credits -= cost;
+    flops -= cost;
     servers[type.sourceTierId] = sourceOwned - type.sourceCount;
     clusters[clusterId] = owned + 1;
     notifyListeners();
@@ -592,7 +592,7 @@ class GameState extends ChangeNotifier {
     final owned = clusters[clusterId] ?? 0;
     if (owned <= 0) return;
     final refund = (getClusterCost(type, owned - 1) * _sellRefundRatio).floor();
-    credits += refund;
+    flops += refund;
     clusters[clusterId] = owned - 1;
     notifyListeners();
   }
@@ -602,8 +602,8 @@ class GameState extends ChangeNotifier {
     if (building.id != buildingId) return;
     final owned = capacity[buildingId] ?? 0;
     final cost = getCapacityBuildingCost(building, owned);
-    if (credits < cost) return;
-    credits -= cost;
+    if (flops < cost) return;
+    flops -= cost;
     capacity[buildingId] = owned + 1;
     notifyListeners();
   }
@@ -614,7 +614,7 @@ class GameState extends ChangeNotifier {
     final owned = capacity[buildingId] ?? 0;
     if (owned <= 0) return;
     final refund = (getCapacityBuildingCost(building, owned - 1) * _sellRefundRatio).floor();
-    credits += refund;
+    flops += refund;
     capacity[buildingId] = owned - 1;
     notifyListeners();
   }
@@ -625,8 +625,8 @@ class GameState extends ChangeNotifier {
     if (upgrades[upgradeId] == true) return;
     if (!isUpgradeAvailable(upgrade, upgrades, servers)) return;
     final cost = (upgrade.cost * getSkillUpgradeCostMult(skills)).floor();
-    if (credits < cost) return;
-    credits -= cost;
+    if (flops < cost) return;
+    flops -= cost;
     upgrades[upgradeId] = true;
     notifyListeners();
   }
@@ -647,9 +647,9 @@ class GameState extends ChangeNotifier {
     if (role.id != roleId) return;
     final owned = staff[roleId] ?? 0;
     final cost = (getHireCost(role, owned) * getSkillStaffCostMult(skills)).floor();
-    if (credits < cost) return;
+    if (flops < cost) return;
     if (!role.isUnlocked(gateState)) return;
-    credits -= cost;
+    flops -= cost;
     staff[roleId] = owned + 1;
     totalStaffEverHired++;
     notifyListeners();
@@ -661,7 +661,7 @@ class GameState extends ChangeNotifier {
     final owned = staff[roleId] ?? 0;
     if (owned <= 0) return;
     final refund = (getHireCost(role, owned - 1) * _staffRefundRatio).floor();
-    credits += refund;
+    flops += refund;
     staff[roleId] = owned - 1;
     notifyListeners();
   }
@@ -671,8 +671,8 @@ class GameState extends ChangeNotifier {
     if (agent.id != agentId) return;
     if (agents[agentId] == true) return;
     final cost = (agent.cost * getSkillAgentCostMult(skills)).floor();
-    if (credits < cost) return;
-    credits -= cost;
+    if (flops < cost) return;
+    flops -= cost;
     agents[agentId] = true;
     notifyListeners();
   }
@@ -682,7 +682,7 @@ class GameState extends ChangeNotifier {
     if (agent.id != agentId) return;
     if (agents[agentId] != true) return;
     final refund = (agent.cost * 0.5).floor();
-    credits += refund;
+    flops += refund;
     agents.remove(agentId);
     notifyListeners();
   }
@@ -713,16 +713,16 @@ class GameState extends ChangeNotifier {
     if (activeIncident == null) return;
     final type = activeIncident!.type;
     if (type != IncidentType.diskFull && type != IncidentType.memoryLeak) return;
-    final baseCps = calcCreditsPerSec(
+    final baseCps = calcFlopsPerSec(
       servers, clusters, gpus, capacity, upgrades,
       staff, research, regions, false, null, skills,
     );
     final config = incidentConfigs[type]!;
     final reward = baseCps * config.rewardSecondsOfCps * getSkillIncidentRewardMult(skills);
-    credits += reward;
+    flops += reward;
     if (type == IncidentType.diskFull) diskFullResolvedCount++;
     activeIncident = null;
-    lastIncidentResolution = IncidentResolution(type: type, success: true, rewardCredits: reward, penaltyCredits: 0);
+    lastIncidentResolution = IncidentResolution(type: type, success: true, rewardFlops: reward, penaltyFlops: 0);
     notifyListeners();
   }
 
@@ -734,15 +734,15 @@ class GameState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final baseCps = calcCreditsPerSec(
+    final baseCps = calcFlopsPerSec(
       servers, clusters, gpus, capacity, upgrades,
       staff, research, regions, false, null, skills,
     );
     final reward = baseCps * incidentConfigs[IncidentType.ddos]!.rewardSecondsOfCps * getSkillIncidentRewardMult(skills);
-    credits += reward;
+    flops += reward;
     ddosResolvedCount++;
     activeIncident = null;
-    lastIncidentResolution = IncidentResolution(type: IncidentType.ddos, success: true, rewardCredits: reward, penaltyCredits: 0);
+    lastIncidentResolution = IncidentResolution(type: IncidentType.ddos, success: true, rewardFlops: reward, penaltyFlops: 0);
     notifyListeners();
   }
 
@@ -755,7 +755,7 @@ class GameState extends ChangeNotifier {
     if (letter == expected) {
       final nextStep = step + 1;
       if (nextStep >= seq.length) {
-        final baseCps = calcCreditsPerSec(
+        final baseCps = calcFlopsPerSec(
           servers, clusters, gpus, capacity, upgrades,
           staff, research, regions, false, null, skills,
         );
@@ -763,9 +763,9 @@ class GameState extends ChangeNotifier {
             incidentConfigs[IncidentType.hackerBreach]!.rewardSecondsOfCps *
             getSkillIncidentRewardMult(skills) *
             getSkillHackerRewardMult(skills);
-        credits += reward;
+        flops += reward;
         activeIncident = null;
-        lastIncidentResolution = IncidentResolution(type: IncidentType.hackerBreach, success: true, rewardCredits: reward, penaltyCredits: 0);
+        lastIncidentResolution = IncidentResolution(type: IncidentType.hackerBreach, success: true, rewardFlops: reward, penaltyFlops: 0);
       } else {
         activeIncident = activeIncident!.copyWith(currentStep: nextStep);
       }
@@ -780,19 +780,19 @@ class GameState extends ChangeNotifier {
     vendorDiscountAvailable = true;
     vendorOfferAcceptedCount++;
     activeIncident = null;
-    lastIncidentResolution = IncidentResolution(type: IncidentType.vendorOffer, success: true, rewardCredits: 0, penaltyCredits: 0);
+    lastIncidentResolution = IncidentResolution(type: IncidentType.vendorOffer, success: true, rewardFlops: 0, penaltyFlops: 0);
     notifyListeners();
   }
 
   // ─── Prestige ───
 
   void doPrestige() {
-    final spEarned = calcSkillPointsEarned(highestCredits);
+    final spEarned = calcSkillPointsEarned(highestFlops);
     if (spEarned <= 0) return;
-    final startCredits = getSkillStartingCredits(skills);
+    final startFlops = getSkillStartingFlops(skills);
     final startServers = getSkillStartingServers(skills);
 
-    credits = startCredits.toDouble();
+    flops = startFlops.toDouble();
     researchPoints = 0;
     servers = startServers;
     clusters = {};
@@ -806,7 +806,7 @@ class GameState extends ChangeNotifier {
     agentAutonomy = 5;
     agentDevOpsAccum = 0;
     agentResponderAccum = 0;
-    highestCredits = startCredits.toDouble();
+    highestFlops = startFlops.toDouble();
     skillPoints += spEarned;
     prestigeCount++;
     totalStaffEverHired = 0;
@@ -862,7 +862,7 @@ class GameState extends ChangeNotifier {
   Future<void> devResetGame() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_saveKey);
-    credits = 0;
+    flops = 0;
     researchPoints = 0;
     servers = {};
     clusters = {};
@@ -876,7 +876,7 @@ class GameState extends ChangeNotifier {
     agentAutonomy = 5;
     agentDevOpsAccum = 0;
     agentResponderAccum = 0;
-    highestCredits = 0;
+    highestFlops = 0;
     skillPoints = 0;
     prestigeCount = 0;
     skills = {};
@@ -900,7 +900,7 @@ class GameState extends ChangeNotifier {
 
   Future<void> collectOfflineEarnings() async {
     if (pendingOfflineEarnings <= 0) return;
-    credits += pendingOfflineEarnings;
+    flops += pendingOfflineEarnings;
     pendingOfflineEarnings = 0;
     notifyListeners();
     await saveGame();
@@ -912,7 +912,7 @@ class GameState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
     final data = {
-      'credits': credits,
+      'flops': flops,
       'researchPoints': researchPoints,
       'servers': servers,
       'clusters': clusters,
@@ -924,7 +924,7 @@ class GameState extends ChangeNotifier {
       'staff': staff,
       'agents': agents,
       'agentAutonomy': agentAutonomy,
-      'highestCredits': highestCredits,
+      'highestFlops': highestFlops,
       'skillPoints': skillPoints,
       'prestigeCount': prestigeCount,
       'skills': skills,
@@ -986,7 +986,7 @@ class GameState extends ChangeNotifier {
       loadedBuild = null;
     }
 
-    final grossCps = calcCreditsPerSec(
+    final grossCps = calcFlopsPerSec(
       loadedServers, savedClusters, loadedGpus, savedCapacity,
       savedUpgrades, savedStaff, savedResearch, loadedRegions,
       data['overclockEnabled'] as bool? ?? false, null, savedSkills,
@@ -1006,7 +1006,7 @@ class GameState extends ChangeNotifier {
         getSkillResearchMult(savedSkills);
     final rpGained = elapsedSec * rpRate;
 
-    credits = (data['credits'] as num?)?.toDouble() ?? 0;
+    flops = (data['flops'] as num?)?.toDouble() ?? 0;
     researchPoints = ((data['researchPoints'] as num?)?.toDouble() ?? 0) + rpGained;
     servers = loadedServers;
     clusters = savedClusters;
@@ -1020,7 +1020,7 @@ class GameState extends ChangeNotifier {
     agentAutonomy = (data['agentAutonomy'] as num?)?.toInt() ?? 5;
     agentDevOpsAccum = 0;
     agentResponderAccum = 0;
-    highestCredits = (data['highestCredits'] as num?)?.toDouble() ?? 0;
+    highestFlops = (data['highestFlops'] as num?)?.toDouble() ?? 0;
     skillPoints = (data['skillPoints'] as num?)?.toInt() ?? 0;
     prestigeCount = (data['prestigeCount'] as num?)?.toInt() ?? 0;
     skills = savedSkills;
@@ -1097,13 +1097,13 @@ class ServerFailure {
 class IncidentResolution {
   final IncidentType type;
   final bool success;
-  final double rewardCredits;
-  final double penaltyCredits;
+  final double rewardFlops;
+  final double penaltyFlops;
   const IncidentResolution({
     required this.type,
     required this.success,
-    required this.rewardCredits,
-    required this.penaltyCredits,
+    required this.rewardFlops,
+    required this.penaltyFlops,
   });
 }
 
@@ -1120,7 +1120,7 @@ class PowerCoolingStats {
 
 // ─── Global CPS calculation ───
 
-double calcCreditsPerSec(
+double calcFlopsPerSec(
   Map<String, int> servers,
   Map<String, int> clusters,
   Map<String, int> gpus,
@@ -1153,7 +1153,7 @@ double calcCreditsPerSec(
 
   final staffMult = getStaffOutputMultiplier(staff);
   final researchMult = getResearchOutputMultiplier(research);
-  final baseOutput = _baseCreditsPerSec +
+  final baseOutput = _baseFlopsPerSec +
       (serverOutput + clusterOutput + regionsOutput + gpuOutput) *
           staffMult *
           researchMult;

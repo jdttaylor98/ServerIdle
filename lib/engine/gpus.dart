@@ -1,4 +1,4 @@
-// GPU hardware — expensive, power-hungry units that generate both credits AND
+// GPU hardware — expensive, power-hungry units that generate both flops AND
 // Research Points.  Unlocked by the CUDA Drivers research node.
 
 import 'dart:math';
@@ -8,7 +8,7 @@ class GpuTier {
   final String name;
   final String description;
   final int baseCost;
-  final int baseOutput; // credits per second per unit
+  final int baseOutput; // flops per second per unit
   final double rpOutput; // research points per second per unit
   final double costScaling;
   final int powerDraw; // watts per unit

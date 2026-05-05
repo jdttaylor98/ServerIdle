@@ -171,7 +171,7 @@ double getResearchPointsPerSec(Map<String, int> staff) {
   return 0.1 * _getCount(staff, 'data_scientist') * _getManagerBoost(staff);
 }
 
-/// Total salary drain in credits per second.
+/// Total salary drain in flops per second.
 double getTotalSalaryAmount(Map<String, int> staff) {
   return staffRoles.fold<double>(
     0,

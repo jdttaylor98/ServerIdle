@@ -20,7 +20,7 @@ class StaffScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'STAFF',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -50,7 +50,7 @@ class StaffScreen extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '−${game.totalSalary.toStringAsFixed(1)} cr/sec',
+                              '−${game.totalSalary.toStringAsFixed(1)} flops/sec',
                               style: const TextStyle(
                                 color: AppColors.orange,
                                 fontSize: 14,
@@ -86,7 +86,7 @@ class _StaffRow extends StatelessWidget {
     final cost = getHireCost(role, owned);
     final refund =
         owned > 0 ? (getHireCost(role, owned - 1) * 0.5).floor() : 0;
-    final canAfford = game.credits >= cost;
+    final canAfford = game.flops >= cost;
     final canHire = unlocked && canAfford;
 
     return Padding(
@@ -148,7 +148,7 @@ class _StaffRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Salary: ${role.salary} cr/sec each${owned > 0 ? ' · Total ${(role.salary * owned).toStringAsFixed(1)} cr/sec' : ''}',
+                      'Salary: ${role.salary} flops/sec each${owned > 0 ? ' · Total ${(role.salary * owned).toStringAsFixed(1)} flops/sec' : ''}',
                       style: const TextStyle(
                         color: AppColors.textDim,
                         fontSize: 11,

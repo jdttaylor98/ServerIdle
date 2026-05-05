@@ -22,7 +22,7 @@ class AgentScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'AI AGENTS',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -62,7 +62,7 @@ class AgentScreen extends StatelessWidget {
                             _summaryRow('AGENTS ACTIVE', '$hiredCount / 3',
                                 AppColors.textPrimary),
                             _summaryRow('AGENT SALARY',
-                                '−$totalSalary cr/sec', AppColors.orange),
+                                '−$totalSalary flops/sec', AppColors.orange),
                           ],
                         ),
                       ),
@@ -240,7 +240,7 @@ class _AgentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final game = context.watch<GameState>();
     final hired = game.agents[agent.id] == true;
-    final canAfford = game.credits >= agent.cost;
+    final canAfford = game.flops >= agent.cost;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -287,7 +287,7 @@ class _AgentRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '−${agent.salaryPerSec} cr/sec salary',
+                    '−${agent.salaryPerSec} flops/sec salary',
                     style: const TextStyle(
                       color: AppColors.orange,
                       fontSize: 11,

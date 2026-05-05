@@ -21,7 +21,7 @@ class IncidentConfig {
   final double activeMultiplier;
   final double rewardSecondsOfCps;
   final double timeoutPenaltySecondsOfCps;
-  final double timeoutCreditPercent;
+  final double timeoutFlopPercent;
   final int sequenceLength;
   final int decayDuration;
   final double minMultiplier;
@@ -35,7 +35,7 @@ class IncidentConfig {
     this.activeMultiplier = 1.0,
     this.rewardSecondsOfCps = 0,
     this.timeoutPenaltySecondsOfCps = 0,
-    this.timeoutCreditPercent = 0,
+    this.timeoutFlopPercent = 0,
     this.sequenceLength = 0,
     this.decayDuration = 0,
     this.minMultiplier = 0,
@@ -78,7 +78,7 @@ const Map<IncidentType, IncidentConfig> incidentConfigs = {
     minMultiplier: 0.25,
     activeMultiplier: 1,
     rewardSecondsOfCps: 20,
-    timeoutCreditPercent: 0.02,
+    timeoutFlopPercent: 0.02,
   ),
   IncidentType.hackerBreach: IncidentConfig(
     name: 'Hacker Breach',
@@ -88,7 +88,7 @@ const Map<IncidentType, IncidentConfig> incidentConfigs = {
     sequenceLength: 4,
     activeMultiplier: 0.7,
     rewardSecondsOfCps: 90,
-    timeoutCreditPercent: 0.10,
+    timeoutFlopPercent: 0.10,
   ),
 };
 

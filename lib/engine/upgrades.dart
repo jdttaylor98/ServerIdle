@@ -26,7 +26,7 @@ final List<Upgrade> allUpgrades = [
   const Upgrade(
     id: 'mechanical_keyboard',
     name: 'Mechanical Keyboard',
-    description: '+1 credit per PROVISION tap',
+    description: '+1 flop per PROVISION tap',
     era: 'homelab',
     cost: 25,
     prereqs: [],
@@ -50,7 +50,7 @@ final List<Upgrade> allUpgrades = [
   const Upgrade(
     id: 'macro_recorder',
     name: 'Macro Recorder',
-    description: '+2 more credits per PROVISION tap',
+    description: '+2 more flops per PROVISION tap',
     era: 'homelab',
     cost: 1000,
     prereqs: ['mechanical_keyboard'],
@@ -66,7 +66,7 @@ final List<Upgrade> allUpgrades = [
   const Upgrade(
     id: 'hyperthreading',
     name: 'Hyperthreading',
-    description: 'PROVISION taps grant 1.5× credits',
+    description: 'PROVISION taps grant 1.5× flops',
     era: 'homelab',
     cost: 5000,
     prereqs: ['macro_recorder'],
@@ -169,14 +169,14 @@ List<Upgrade> getUpgradesByEra(String era) {
 
 // ─── Effect helpers ───
 
-double getClickCreditBonus(Map<String, bool> purchased) {
+double getClickFlopBonus(Map<String, bool> purchased) {
   double bonus = 0;
   if (purchased['mechanical_keyboard'] == true) bonus += 1;
   if (purchased['macro_recorder'] == true) bonus += 2;
   return bonus;
 }
 
-double getClickCreditMultiplier(Map<String, bool> purchased) {
+double getClickFlopMultiplier(Map<String, bool> purchased) {
   return purchased['hyperthreading'] == true ? 1.5 : 1;
 }
 

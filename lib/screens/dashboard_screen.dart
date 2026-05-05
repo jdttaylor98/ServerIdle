@@ -85,7 +85,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: AppColors.cardBg,
         title: const Text('Reset Game?', style: TextStyle(color: AppColors.textPrimary)),
         content: const Text(
-          'This wipes ALL progress — credits, servers, upgrades, prestige, skill tree, everything. This cannot be undone.',
+          'This wipes ALL progress — flops, servers, upgrades, prestige, skill tree, everything. This cannot be undone.',
           style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
@@ -109,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final game = context.watch<GameState>();
 
-    final cps = game.creditsPerSec;
+    final cps = game.flopsPerSec;
     final salary = game.totalSalary;
     final cloudCost = game.cloudOperatingCost;
     final agentCostTotal = game.agentSalaryCost;
@@ -135,12 +135,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final hiredAgentCount = game.agents.values.where((v) => v).length;
     final agentSalaryDisplay = getTotalAgentSalary(game.agents);
     final ownedRegionCount = game.regions.values.where((v) => v).length;
-    final showPrestigeNav = isPrestigeVisible(game.highestCredits);
+    final showPrestigeNav = isPrestigeVisible(game.highestFlops);
     final showSkillsNav = game.prestigeCount >= 1;
     final ownedSkillCount = game.skills.values.where((v) => v).length;
 
-    final tapCredits = (1 + getClickCreditBonus(game.upgrades)) *
-        getClickCreditMultiplier(game.upgrades);
+    final tapFlops = (1 + getClickFlopBonus(game.upgrades)) *
+        getClickFlopMultiplier(game.upgrades);
 
     return Scaffold(
       body: SafeArea(
@@ -157,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   GestureDetector(
                     onTap: _handleTitleTap,
                     child: const Text(
-                      'SERVER IDLE',
+                      'FLOPS',
                       style: TextStyle(
                         color: AppColors.green,
                         fontSize: 18,
@@ -203,7 +203,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Onboarding hint
-                    if (totalServers == 0 && game.credits < 10) ...[
+                    if (totalServers == 0 && game.flops < 10) ...[
                       Container(
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 14),
@@ -213,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
-                          'Tap PROVISION to earn credits, then buy your first server below.',
+                          'Tap PROVISION to earn flops, then buy your first server below.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: AppColors.green, fontSize: 13),
                         ),
@@ -232,7 +232,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: Column(
                         children: [
                           Text(
-                            game.credits.floor().toStringAsFixed(0).replaceAllMapped(
+                            game.flops.floor().toStringAsFixed(0).replaceAllMapped(
                                 RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
                                 (m) => '${m[1]},'),
                             textAlign: TextAlign.center,
@@ -243,7 +243,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           const Text(
-                            'credits',
+                            'flops',
                             textAlign: TextAlign.center,
                             style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                           ),
@@ -372,7 +372,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '+${tapCredits % 1 == 0 ? tapCredits.toInt() : tapCredits.toStringAsFixed(1)} credit${tapCredits == 1 ? '' : 's'}',
+                              '+${tapFlops % 1 == 0 ? tapFlops.toInt() : tapFlops.toStringAsFixed(1)} flop${tapFlops == 1 ? '' : 's'}',
                               style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
                             ),
                           ],
@@ -420,7 +420,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: '👥',
                         label: 'STAFF',
                         hint: totalStaff > 0
-                            ? '$totalStaff hired · ${salary.toStringAsFixed(1)} cr/sec payroll'
+                            ? '$totalStaff hired · ${salary.toStringAsFixed(1)} flops/sec payroll'
                             : 'Hire your team',
                         onPress: () => _pushScreen(const StaffScreen()),
                       ),
@@ -445,7 +445,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: '🎮',
                         label: 'GPU',
                         hint: totalGpuCount > 0
-                            ? '$totalGpuCount units · ${getTotalGpuOutput(game.gpus).toStringAsFixed(0)} cr/sec'
+                            ? '$totalGpuCount units · ${getTotalGpuOutput(game.gpus).toStringAsFixed(0)} flops/sec'
                             : 'Build GPU hardware',
                         onPress: () => _pushScreen(const GpuScreen()),
                       ),
@@ -454,7 +454,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         icon: '🤖',
                         label: 'AI AGENTS',
                         hint: hiredAgentCount > 0
-                            ? '$hiredAgentCount/3 active · ${agentSalaryDisplay.toStringAsFixed(0)} cr/sec'
+                            ? '$hiredAgentCount/3 active · ${agentSalaryDisplay.toStringAsFixed(0)} flops/sec'
                             : 'Hire AI to automate',
                         onPress: () => _pushScreen(const AgentScreen()),
                       ),
@@ -567,11 +567,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 6),
           Row(
             children: [
-              _devBtn('+10K', () => game.addCredits(10000)),
+              _devBtn('+10K', () => game.addFlops(10000)),
               const SizedBox(width: 6),
-              _devBtn('+1M', () => game.addCredits(1000000)),
+              _devBtn('+1M', () => game.addFlops(1000000)),
               const SizedBox(width: 6),
-              _devBtn('+10M', () => game.addCredits(10000000)),
+              _devBtn('+10M', () => game.addFlops(10000000)),
             ],
           ),
           const SizedBox(height: 6),

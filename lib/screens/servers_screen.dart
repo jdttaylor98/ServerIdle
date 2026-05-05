@@ -29,7 +29,7 @@ class ServersScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'SERVERS',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -111,7 +111,7 @@ class _ServerRowState extends State<_ServerRow> {
     final tierMult = getServerOutputMultiplier(tier.id, game.upgrades);
     final perUnit = tier.baseOutput * tierMult;
     final totalOutput = getServerOutput(tier, owned) * tierMult;
-    final canAfford = game.credits >= cost;
+    final canAfford = game.flops >= cost;
     final refund = owned > 0
         ? (getServerCost(tier, owned - 1) * 0.5).floor()
         : 0;
@@ -174,7 +174,7 @@ class _ServerRowState extends State<_ServerRow> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${perUnit.toStringAsFixed(2)} credits/sec each${tierMult > 1 ? ' (×${tierMult.toStringAsFixed(2)})' : ''}',
+                    '${perUnit.toStringAsFixed(2)} flops/sec each${tierMult > 1 ? ' (×${tierMult.toStringAsFixed(2)})' : ''}',
                     style: const TextStyle(
                       color: AppColors.textDim,
                       fontSize: 11,
@@ -182,7 +182,7 @@ class _ServerRowState extends State<_ServerRow> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Total: ${totalOutput.toStringAsFixed(1)} credits/sec',
+                    'Total: ${totalOutput.toStringAsFixed(1)} flops/sec',
                     style: const TextStyle(
                       color: AppColors.green,
                       fontSize: 12,
@@ -295,7 +295,7 @@ class _ClusterRow extends StatelessWidget {
     final totalOutput = getClusterOutput(type, owned, tierMult);
 
     final enoughSource = sourceOwned >= type.sourceCount;
-    final canAfford = game.credits >= cost;
+    final canAfford = game.flops >= cost;
     final canBuild = unlocked && enoughSource && canAfford;
     final refund =
         owned > 0 ? (getClusterCost(type, owned - 1) * 0.5).floor() : 0;
@@ -353,7 +353,7 @@ class _ClusterRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${outputPerCluster.toStringAsFixed(1)} cr/sec each${tierMult > 1 ? ' (×${tierMult.toStringAsFixed(2)})' : ''}',
+                      '${outputPerCluster.toStringAsFixed(1)} flops/sec each${tierMult > 1 ? ' (×${tierMult.toStringAsFixed(2)})' : ''}',
                       style: const TextStyle(
                         color: Color(0xFF77AAFF),
                         fontSize: 12,
@@ -361,7 +361,7 @@ class _ClusterRow extends StatelessWidget {
                     ),
                     if (owned > 0)
                       Text(
-                        'Total: ${totalOutput.toStringAsFixed(1)} cr/sec',
+                        'Total: ${totalOutput.toStringAsFixed(1)} flops/sec',
                         style: const TextStyle(
                           color: Color(0xFF77AAFF),
                           fontSize: 11,
@@ -369,7 +369,7 @@ class _ClusterRow extends StatelessWidget {
                       ),
                     const SizedBox(height: 4),
                     Text(
-                      'Build cost: ${type.sourceCount} × ${sourceTier?.name ?? '?'} + ${_formatCost(cost)} cr',
+                      'Build cost: ${type.sourceCount} × ${sourceTier?.name ?? '?'} + ${_formatCost(cost)} flops',
                       style: const TextStyle(
                         color: AppColors.textDim,
                         fontSize: 11,

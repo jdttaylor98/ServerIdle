@@ -25,7 +25,7 @@ class UpgradesScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'UPGRADES',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -162,7 +162,7 @@ class _UpgradeCard extends StatelessWidget {
     final owned = game.upgrades[upgrade.id] == true;
     final available =
         isUpgradeAvailable(upgrade, game.upgrades, game.servers);
-    final canAfford = game.credits >= upgrade.cost;
+    final canAfford = game.flops >= upgrade.cost;
 
     late final String state;
     if (owned) {
@@ -311,7 +311,7 @@ class _UpgradeCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Need ${_formatCost(upgrade.cost - game.credits)} more credits',
+                  'Need ${_formatCost(upgrade.cost - game.flops)} more flops',
                   style: const TextStyle(
                     color: AppColors.textDim,
                     fontSize: 10,

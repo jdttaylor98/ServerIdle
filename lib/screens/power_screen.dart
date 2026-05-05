@@ -31,7 +31,7 @@ class PowerScreen extends StatelessWidget {
           children: [
             ScreenHeader(
               title: 'POWER',
-              rightLabel: '${game.credits.floor()} cr',
+              rightLabel: '${game.flops.floor()} flops',
               onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -142,7 +142,7 @@ class _CapacityRow extends StatelessWidget {
     final owned = game.capacity[building.id] ?? 0;
     final cost = getCapacityBuildingCost(building, owned);
     final totalProvided = building.capacity * owned;
-    final canAfford = game.credits >= cost;
+    final canAfford = game.flops >= cost;
     final refund = owned > 0
         ? (getCapacityBuildingCost(building, owned - 1) * 0.5).floor()
         : 0;
